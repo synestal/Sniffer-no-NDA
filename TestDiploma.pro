@@ -33,14 +33,14 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 # Пути к заголовочным файлам
 INCLUDEPATH += \
-    libs\PcapPlusPlus-master\builded\include\pcapplusplus \
-    libs\PcapPlusPlus-master\builded\include \
+    # libs\PcapPlusPlus-master\builded\include\pcapplusplus \
+    # libs\PcapPlusPlus-master\builded\include \
     libs\npcap-sdk-1.13/Include
     C:\Windows\System32\Npcap
 
 # Пути к библиотекам
 LIBS += \
-    -LC:\Users\kostr\Downloads\PcapPlusPlus-master\builded\lib -lPcap++ -lCommon++ -lPacket++ \ #fix needable to switch it to the libs directory
+    # -LC:\Users\kostr\Downloads\PcapPlusPlus-master\builded\lib -lPcap++ -lCommon++ -lPacket++ \ #fix needable to switch it to the libs directory
     -LC:/Users/kostr/Downloads/npcap-sdk-1.13/Lib/x64 -lPacket -lwpcap \ #fix needable to switch it to the libs directory
     -LC:\Windows\System32\Npcap -lPacket -lwpcap \
 
