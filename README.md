@@ -4,4 +4,4 @@
 
 Сборка: qmake, MSVC2019x64, Qt6.2.4, release/debug/profile mode, анализатор clang(android)/gdb11x64
 Требования: установленный npcap (не sdk)
-Особенности запуска: поменять путь к sdk (можно скопировать из папки libs)
+

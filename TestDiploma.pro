@@ -34,21 +34,21 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 # Пути к заголовочным файлам
 INCLUDEPATH += \
     # libs\PcapPlusPlus-master\builded\include\pcapplusplus \
-    # libs\PcapPlusPlus-master\builded\include \
-    libs\npcap-sdk-1.13/Include
-    C:\Windows\System32\Npcap
+    # libs/PcapPlusPlus-master/builded/include \
+    libs/npcap-sdk-1.13/Include
+    C:/Windows/System32/Npcap
 
 # Пути к библиотекам
 LIBS += \
-    # -LC:\Users\kostr\Downloads\PcapPlusPlus-master\builded\lib -lPcap++ -lCommon++ -lPacket++ \ #fix needable to switch it to the libs directory
-    -LC:/Users/kostr/Downloads/npcap-sdk-1.13/Lib/x64 -lPacket -lwpcap \ #fix needable to switch it to the libs directory
-    -LC:\Windows\System32\Npcap -lPacket -lwpcap \
+    # -L$$PWD/libs/PcapPlusPlus-master/builded/lib -lPcap++ -lCommon++ -lPacket++ \
+    -L$$PWD/libs/npcap-sdk-1.13/Lib/x64 -lPacket -lwpcap \
+    -LC:/Windows/System32/Npcap -lPacket -lwpcap \
 
 LIBS += -liphlpapi
 LIBS += -lws2_32
 
 # Пути для зависимостей
 DEPENDPATH += \
-    libs\PcapPlusPlus-master\builded\include\pcapplusplus \
-    libs\PcapPlusPlus-master\builded\include \
-    libs\npcap-sdk-1.13\Include
+    libs/PcapPlusPlus-master/builded/include/pcapplusplus \
+    libs/PcapPlusPlus-master/builded/include \
+    libs/npcap-sdk-1.13/Include
