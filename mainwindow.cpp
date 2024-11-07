@@ -26,12 +26,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     });
 
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::AnalysisButtonClicked);
+    connect(ui->ResoursesButton, &QPushButton::clicked, this, &MainWindow::ResoursesButtonClicked);
 
     updateTimer = new QTimer(this);
     connect(updateTimer, &QTimer::timeout, this, &MainWindow::updateByTimer);
     updateTimer->start(200);
 }
 
+void MainWindow::ResoursesButtonClicked() {
+    resourse = std::make_unique<ResoursesView>();
+
+    size_t header_meta_size = header.capacity() * sizeof(const struct pcap_pkthdr*);
+    resourse->UpdateData(0, sizeCurr + header_meta_size);
+    resourse->show();
+}
 void MainWindow::resizeEvent(QResizeEvent *event) {
     int visibleHeight = ui->tableView_2->viewport()->height();
     int rowHeight = ui->tableView_2->verticalHeader()->defaultSectionSize();
@@ -91,6 +99,17 @@ void MainWindow::AuthTable() {
     tempWindow->show();
 }
 
+void MainWindow::wheelEvent(QWheelEvent *event) { // Иногда крутит на 5, иногда на 4. Хочу оставить это фишкой, нежели фиксить
+    int temp = INT_MAX * (static_cast<double>(currScrollValue) / static_cast<double>(maxScrollValue));
+    if (maxScrollValue * (static_cast<double>(temp) / static_cast<double>(INT_MAX) != currScrollValue) && temp != INT_MAX) {++temp;} // Текущее положение
+    int val = static_cast<double>(INT_MAX) / static_cast<double>(maxScrollValue) * 5.0;
+    if (event->angleDelta().y() < 0) {
+        ui->verticalScrollBar->setValue(temp - INT_MAX + val > 0 ? INT_MAX : temp + val);
+    } else {
+        ui->verticalScrollBar->setValue(temp - val > 0 ? temp - val : 0);
+    }
+}
+
 void MainWindow::StartSniffing(QString device) {
     StopSniffing();
     sniffer = std::make_unique<SnifferMonitoring>(device, this);
@@ -105,13 +124,9 @@ void MainWindow::StartSniffing(QString device) {
     ui->verticalScrollBar->setValue(INT_MAX);
     connect(ui->verticalScrollBar, &QScrollBar::valueChanged, this, &MainWindow::updateOnScrollEvent);
 
-    ui->tableView_2->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    ui->tableView_2->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-    ui->tableView_2->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    ui->tableView_2->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
-    ui->tableView_2->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
-    ui->tableView_2->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
-    ui->tableView_2->horizontalHeader()->setSectionResizeMode(5, QHeaderView::Stretch);
+    for(int i = 0; i < 6; ++i) {
+        ui->tableView_2->horizontalHeader()->setSectionResizeMode(i, QHeaderView::Stretch);
+    }
     ui->tableView_2->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
 
@@ -138,7 +153,11 @@ void MainWindow::updateByTimer() {
     int endRow = startRow + rowCount < header.size() ? startRow + rowCount : header.size();
 
     UpdateTableWiew(startRow, endRow);
-    if( graph != nullptr) {graph->Repaint();};
+    if(graph != nullptr) {graph->Repaint();}
+    if(resourse != nullptr) {
+        size_t header_meta_size = header.capacity() * sizeof(const struct pcap_pkthdr*);
+        resourse->UpdateData(0, sizeCurr + header_meta_size);
+    }
 }
 
 void MainWindow::UpdateTableWiew(int startRow, int endRow) {
@@ -154,11 +173,7 @@ void MainWindow::handlePacketCapturedUchar(const struct pcap_pkthdr* hdr, const 
    pkt_data.push_back(dta);
    maxScrollValue = header.size() < rowCount ? 0 : header.size() - rowCount;
 
-   /*
-   size_t header_meta_size = header.capacity() * sizeof(const struct pcap_pkthdr*);
    sizeCurr += sizeof(struct pcap_pkthdr) + hdr->caplen;
-   qDebug() << "Current size" << (sizeCurr + header_meta_size) / (1024 * 1024);
-   */
 }
 
 void MainWindow::ResumeSniffing() {

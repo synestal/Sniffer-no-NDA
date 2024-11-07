@@ -30,6 +30,7 @@
 #include "sniffermonitoring.h"
 #include "functionstodeterminepacket.h"
 #include "graphy.h"
+#include "resoursesview.h"
 
 
 
@@ -195,13 +196,18 @@ private:
     void handlePacketCapturedUchar(const struct pcap_pkthdr*, const u_char*);
     std::vector<packet_info> TableStorage;
 
-    std::unique_ptr<graphy> graph = nullptr;
 
     void updateRowCount();
     int rowCount = 15;
 
     void AnalysisButtonClicked();
+    std::unique_ptr<graphy> graph = nullptr;
+
+    void ResoursesButtonClicked();
+    std::unique_ptr<ResoursesView> resourse = nullptr;
+
     void resizeEvent(QResizeEvent*) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 };
 

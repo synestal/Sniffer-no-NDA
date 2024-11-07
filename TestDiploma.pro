@@ -11,6 +11,7 @@ SOURCES += \
     mainwindow.cpp \
     packages/service_pcap/misc.cpp \
     ncardauth.cpp \
+    resoursesview.cpp \
     sniffermonitoring.cpp
 
 HEADERS += \
@@ -18,12 +19,14 @@ HEADERS += \
     graphy.h \
     mainwindow.h \
     ncardauth.h \
+    resoursesview.h \
     sniffermonitoring.h \
     packages/service_pcap/misc.h \
     packages/structs/typesAndStructs.h
 
 FORMS += \
-    mainwindow.ui
+    mainwindow.ui \
+    resoursesview.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin

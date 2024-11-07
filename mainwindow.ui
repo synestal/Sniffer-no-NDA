@@ -134,7 +134,7 @@
             </widget>
            </item>
            <item>
-            <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0,0,0,0,0,0,0">
+            <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0,0,0,0,0,0,0,0">
              <property name="sizeConstraint">
               <enum>QLayout::SetMinAndMaxSize</enum>
              </property>
@@ -239,6 +239,19 @@
                </property>
                <property name="text">
                 <string>Руководство</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="ResoursesButton">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="text">
+                <string>Ресурсы</string>
                </property>
               </widget>
              </item>
