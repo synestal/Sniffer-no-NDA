@@ -194,7 +194,7 @@ void MainWindow::ResoursesButtonClicked() {
     resourse->show();
 }
 
-void MainWindow::wheelEvent(QWheelEvent *event) { // Иногда крутит на 5, иногда на 4. Хочу оставить это фишкой, нежели фиксить
+void MainWindow::wheelEvent(QWheelEvent *event) { // Иногда крутит на 5, иногда на 4. Хочу оставить это фишкой, нежели фиксить (Вычислять округление от деления)
     int temp = INT_MAX * (static_cast<double>(currScrollValue) / static_cast<double>(maxScrollValue));
     if (maxScrollValue * (static_cast<double>(temp) / static_cast<double>(INT_MAX) != currScrollValue) && temp != INT_MAX) {++temp;} // Текущее положение
     int val = static_cast<double>(INT_MAX) / static_cast<double>(maxScrollValue) * 5.0;
