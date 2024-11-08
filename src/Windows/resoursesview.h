@@ -4,6 +4,7 @@
 #include <QDialog>
 #include <QProcess>
 #include <QTimer>
+#include <QRegularExpression>
 
 namespace Ui {
 class ResoursesView;
