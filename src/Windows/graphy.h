@@ -16,7 +16,7 @@
 #include <ctime>
 
 
-#include "functionstodeterminepacket.h"
+#include "src/NCard/functionstodeterminepacket.h"
 
 
 

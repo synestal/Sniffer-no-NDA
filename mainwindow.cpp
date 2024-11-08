@@ -220,9 +220,6 @@ void MainWindow::AnalysisButtonClicked() {
 }
 
 
-
-
-
 MainWindow::~MainWindow() {
     delete ui;
 }

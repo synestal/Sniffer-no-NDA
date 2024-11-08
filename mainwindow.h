@@ -22,15 +22,15 @@
 #include <memory>
 
 
-#include "ncardauth.h"
+#include "src/NCard/ncardauth.h"
 #include "pcap.h"
 
 
 #include "packages/service_pcap/misc.h"
-#include "sniffermonitoring.h"
-#include "functionstodeterminepacket.h"
-#include "graphy.h"
-#include "resoursesview.h"
+#include "src/NCard/sniffermonitoring.h"
+#include "src/NCard/functionstodeterminepacket.h"
+#include "src/Windows/graphy.h"
+#include "src/Windows/resoursesview.h"
 
 
 

@@ -5,28 +5,28 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17
 SOURCES += \
-    functionstodeterminepacket.cpp \
-    graphy.cpp \
+    src/NCard/functionstodeterminepacket.cpp \
+    src/Windows/graphy.cpp \
     main.cpp \
     mainwindow.cpp \
     packages/service_pcap/misc.cpp \
-    ncardauth.cpp \
-    resoursesview.cpp \
-    sniffermonitoring.cpp
+    src/NCard/ncardauth.cpp \
+    src/Windows/resoursesview.cpp \
+    src/NCard/sniffermonitoring.cpp
 
 HEADERS += \
-    functionstodeterminepacket.h \
-    graphy.h \
+    src/NCard/functionstodeterminepacket.h \
+    src/Windows/graphy.h \
     mainwindow.h \
-    ncardauth.h \
-    resoursesview.h \
-    sniffermonitoring.h \
+    src/NCard/ncardauth.h \
+    src/Windows/resoursesview.h \
+    src/NCard/sniffermonitoring.h \
     packages/service_pcap/misc.h \
     packages/structs/typesAndStructs.h
 
 FORMS += \
     mainwindow.ui \
-    resoursesview.ui
+    src/Windows/resoursesview.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
