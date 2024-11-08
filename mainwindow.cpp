@@ -33,23 +33,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     updateTimer->start(200);
 }
 
-void MainWindow::ResoursesButtonClicked() {
-    resourse = std::make_unique<ResoursesView>();
-    resourse->setSrc(header, sizeCurr);
-
-    resourse->UpdateData();
-    resourse->show();
-}
-
-void MainWindow::resizeEvent(QResizeEvent *event) {
-    int visibleHeight = ui->tableView_2->viewport()->height();
-    int rowHeight = ui->tableView_2->verticalHeader()->defaultSectionSize();
-
-    if (model) { rowCount = visibleHeight / rowHeight; };
-
-    QMainWindow::resizeEvent(event);
-}
-
 void MainWindow::AuthTable() {
     auto auth = std::make_unique<NCardAuth>();
     QVector<QPair<QString, QString>> devices;
@@ -98,17 +81,6 @@ void MainWindow::AuthTable() {
     });
 
     tempWindow->show();
-}
-
-void MainWindow::wheelEvent(QWheelEvent *event) { // Иногда крутит на 5, иногда на 4. Хочу оставить это фишкой, нежели фиксить
-    int temp = INT_MAX * (static_cast<double>(currScrollValue) / static_cast<double>(maxScrollValue));
-    if (maxScrollValue * (static_cast<double>(temp) / static_cast<double>(INT_MAX) != currScrollValue) && temp != INT_MAX) {++temp;} // Текущее положение
-    int val = static_cast<double>(INT_MAX) / static_cast<double>(maxScrollValue) * 5.0;
-    if (event->angleDelta().y() < 0) {
-        ui->verticalScrollBar->setValue(temp - INT_MAX + val > 0 ? INT_MAX : temp + val);
-    } else {
-        ui->verticalScrollBar->setValue(temp - val > 0 ? temp - val : 0);
-    }
 }
 
 void MainWindow::StartSniffing(QString device) {
@@ -186,7 +158,6 @@ void MainWindow::PauseSniffing() {
     if (sniffer != nullptr) { sniffer->stopSniffing(); };
 }
 
-
 void MainWindow::onRowClicked(const QModelIndex &index) {
     int row = index.row() + currScrollValue;
     auto determinator = std::make_unique<functionsToDeterminePacket>(header, pkt_data);
@@ -215,6 +186,33 @@ void MainWindow::AnalysisButtonClicked() {
     graph->exec();
 }
 
+void MainWindow::ResoursesButtonClicked() {
+    resourse = std::make_unique<ResoursesView>();
+    resourse->setSrc(header, sizeCurr);
+
+    resourse->UpdateData();
+    resourse->show();
+}
+
+void MainWindow::wheelEvent(QWheelEvent *event) { // Иногда крутит на 5, иногда на 4. Хочу оставить это фишкой, нежели фиксить
+    int temp = INT_MAX * (static_cast<double>(currScrollValue) / static_cast<double>(maxScrollValue));
+    if (maxScrollValue * (static_cast<double>(temp) / static_cast<double>(INT_MAX) != currScrollValue) && temp != INT_MAX) {++temp;} // Текущее положение
+    int val = static_cast<double>(INT_MAX) / static_cast<double>(maxScrollValue) * 5.0;
+    if (event->angleDelta().y() < 0) {
+        ui->verticalScrollBar->setValue(temp - INT_MAX + val > 0 ? INT_MAX : temp + val);
+    } else {
+        ui->verticalScrollBar->setValue(temp - val > 0 ? temp - val : 0);
+    }
+}
+
+void MainWindow::resizeEvent(QResizeEvent *event) {
+    int visibleHeight = ui->tableView_2->viewport()->height();
+    int rowHeight = ui->tableView_2->verticalHeader()->defaultSectionSize();
+
+    if (model) { rowCount = visibleHeight / rowHeight; };
+
+    QMainWindow::resizeEvent(event);
+}
 
 MainWindow::~MainWindow() {
     delete ui;

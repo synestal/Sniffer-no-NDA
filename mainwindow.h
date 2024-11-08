@@ -165,7 +165,14 @@ public:
     ~MainWindow();
 
 private slots:
+    void handlePacketCapturedUchar(const struct pcap_pkthdr*, const u_char*);
+
     void onRowClicked(const QModelIndex&);
+    void AnalysisButtonClicked();
+    void ResoursesButtonClicked();
+
+    void updateOnScrollEvent(int);  // Обновление параметров при ручной прокрутке
+    void updateByTimer();           // Обновление параметров каждые n мс
 
 private:
     void AuthTable();
@@ -174,41 +181,37 @@ private:
     void StopSniffing();
     void PauseSniffing();
 
-    void updateOnScrollEvent(int);  // Обновление параметров при ручной прокрутке
-    void updateByTimer();           // Обновление параметров каждые n мс
     void UpdateTableWiew(int, int); // Обновление таблицы
     int maxScrollValue = 0;         // Первый элемент из диапазона на вывод - unstable
     int currScrollValue = 0;        // Положение ползунка - unstable
 
-    QString currentDevice;
     QTimer *updateTimer;
 
+    // Сниффинг
     std::unique_ptr<SnifferMonitoring> sniffer = nullptr;
-    PacketModel* model = nullptr;
-    std::unique_ptr<QStandardItemModel> modelDescr = nullptr;
-    Ui::MainWindow *ui;
+    QString currentDevice;
 
+    // Контейнеры пакетов
+    std::vector<const struct pcap_pkthdr*> header;
+    std::vector<const uchar*> pkt_data;
     int sizeCurr = 0;
     int capCurr = 0;
 
-    std::vector<const struct pcap_pkthdr*> header;
-    std::vector<const uchar*> pkt_data;
-    void handlePacketCapturedUchar(const struct pcap_pkthdr*, const u_char*);
+    // Таблица и описание пакета
     std::vector<packet_info> TableStorage;
-
-
-    void updateRowCount();
+    PacketModel* model = nullptr;
+    std::unique_ptr<QStandardItemModel> modelDescr = nullptr;
     int rowCount = 15;
 
-    void AnalysisButtonClicked();
+    // Ресурсы для кнопок
     std::unique_ptr<graphy> graph = nullptr;
-
-    void ResoursesButtonClicked();
     std::unique_ptr<ResoursesView> resourse = nullptr;
 
+    // Переопределенные события
     void resizeEvent(QResizeEvent*) override;
     void wheelEvent(QWheelEvent *event) override;
 
+    Ui::MainWindow *ui;
 };
 
 
