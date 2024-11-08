@@ -35,11 +35,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
 void MainWindow::ResoursesButtonClicked() {
     resourse = std::make_unique<ResoursesView>();
+    resourse->setSrc(header, sizeCurr);
 
-    size_t header_meta_size = header.capacity() * sizeof(const struct pcap_pkthdr*);
-    resourse->UpdateData(0, sizeCurr + header_meta_size);
+    resourse->UpdateData();
     resourse->show();
 }
+
 void MainWindow::resizeEvent(QResizeEvent *event) {
     int visibleHeight = ui->tableView_2->viewport()->height();
     int rowHeight = ui->tableView_2->verticalHeader()->defaultSectionSize();
@@ -141,6 +142,7 @@ void MainWindow::updateOnScrollEvent(int scrollPosition) {
     UpdateTableWiew(startRow, endRow);
 }
 void MainWindow::updateByTimer() {
+    // Пересчет ползунка
     if(sniffer == nullptr) { return; };
     if (ui->verticalScrollBar->value() != INT_MAX) {
             int temp = INT_MAX * (static_cast<double>(currScrollValue) / static_cast<double>(maxScrollValue));
@@ -151,13 +153,7 @@ void MainWindow::updateByTimer() {
     int startRow = maxScrollValue;
     currScrollValue = startRow;
     int endRow = startRow + rowCount < header.size() ? startRow + rowCount : header.size();
-
     UpdateTableWiew(startRow, endRow);
-    if(graph != nullptr) {graph->Repaint();}
-    if(resourse != nullptr) {
-        size_t header_meta_size = header.capacity() * sizeof(const struct pcap_pkthdr*);
-        resourse->UpdateData(0, sizeCurr + header_meta_size);
-    }
 }
 
 void MainWindow::UpdateTableWiew(int startRow, int endRow) {

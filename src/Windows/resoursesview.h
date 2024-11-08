@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QProcess>
+#include <QTimer>
 
 namespace Ui {
 class ResoursesView;
@@ -16,10 +17,15 @@ public:
     explicit ResoursesView(QWidget *parent = nullptr);
     ~ResoursesView();
 
-    void UpdateData(int, int);
+    void setSrc(std::vector<const struct pcap_pkthdr*>&, int&);
+
+    void UpdateData();
 
 private:
     Ui::ResoursesView *ui;
+    int* sizeCurr = nullptr;
+    std::vector<const struct pcap_pkthdr*>*  header = nullptr;
+    QTimer* updateTimer = nullptr;
 };
 
 #endif // RESOURSESVIEW_H

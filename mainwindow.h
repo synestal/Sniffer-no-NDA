@@ -188,8 +188,8 @@ private:
     std::unique_ptr<QStandardItemModel> modelDescr = nullptr;
     Ui::MainWindow *ui;
 
-    long long sizeCurr = 0;
-    long long capCurr = 0;
+    int sizeCurr = 0;
+    int capCurr = 0;
 
     std::vector<const struct pcap_pkthdr*> header;
     std::vector<const uchar*> pkt_data;

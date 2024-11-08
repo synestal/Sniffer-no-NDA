@@ -10,6 +10,7 @@
 #include <QDialog>
 #include <QVector>
 #include <QPushButton>
+#include <QTimer>
 
 
 
@@ -55,6 +56,9 @@ private:
     int maxSize = 0;
     int maxValue = 0;
     int timeLive = -1;
+
+
+    QTimer *updateTimer = nullptr;
 
 
     enum Settings {hour, minute, second, liveH, liveM, liveS};

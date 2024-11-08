@@ -43,22 +43,15 @@ QList<QString> functionsToDeterminePacket::headerDataGetter(const struct pcap_pk
 packet_info functionsToDeterminePacket::determinator(const struct pcap_pkthdr *header, const u_char *pkt_data) {
     struct tm ltime;
     char timestr[16];
-    qDebug() << "here1";
     const ip_header* ih = reinterpret_cast<const ip_header*>(pkt_data + 14);
     const u_int ip_len = (ih->ver_ihl & 0xf) * 4;
     const udp_header* uh = reinterpret_cast<const udp_header*>(pkt_data + 14 + ip_len);
-    qDebug() << "here2";
-    if (uh == nullptr) {
-            qDebug() << "Error: Invalid UDP header.";
-            return packet_info();
-        }
-    qDebug() << ih->proto;
-    qDebug() << ntohs(uh->sport);
-    qDebug() << ntohs(uh->dport);
 
+    // Здесь найден краш. Воспроизвести сложно - зависит от контента
+    // Вылетает в рандомное время, при попытке вызвать либо uh-dport, либо uh->sport
+    // Причину не показывает
     const u_short sport = ntohs( uh->sport );
     const u_short dport = ntohs( uh->dport );
-    qDebug() << "here3";
 
 
     const time_t local_tv_sec = header->ts.tv_sec;

@@ -14,6 +14,10 @@ graphy::graphy(QWidget *parent) : QDialog(parent) {
     axisX = new QValueAxis();
     axisY = new QValueAxis();
     chartView = new QChartView(chart);
+
+    updateTimer = new QTimer(this);
+    connect(updateTimer, &QTimer::timeout, this, &graphy::Repaint);
+    updateTimer->start(200);
 };
 
 void graphy::newChart() {

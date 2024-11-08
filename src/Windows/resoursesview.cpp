@@ -6,9 +6,18 @@ ResoursesView::ResoursesView(QWidget *parent) :
     ui(new Ui::ResoursesView)
 {
     ui->setupUi(this);
+
+    updateTimer = new QTimer(this);
+    connect(updateTimer, &QTimer::timeout, this, &ResoursesView::UpdateData);
+    updateTimer->start(200);
 }
 
-void ResoursesView::UpdateData(int val1, int val2) {
+void ResoursesView::setSrc(std::vector<const struct pcap_pkthdr*>& input, int& inputVal) {
+    header = &input;
+    sizeCurr = &inputVal;
+}
+
+void ResoursesView::UpdateData() {
     QProcess process1;
     #ifdef Q_OS_WIN
         process1.start("tasklist", QStringList() << "/FI" << "IMAGENAME eq TestDiploma.exe" << "/FO" << "CSV");
@@ -31,10 +40,12 @@ void ResoursesView::UpdateData(int val1, int val2) {
     #endif
     ui->label_21->setText(output1);
 
+    size_t header_meta_size = header->capacity() * sizeof(const struct pcap_pkthdr*);
 
-    ui->label_23->setText(QString::number(val1 / (1024 * 1024)));
-    ui->label_24->setText(QString::number(val2 / (1024 * 1024)));
-    ui->label_25->setText(QString::number((val1 + val2) / (1024 * 1024)));
+
+    ui->label_23->setText(QString::number(0 / (1024 * 1024))); // Заменить 0 на val1
+    ui->label_24->setText(QString::number((*sizeCurr + header_meta_size) / (1024 * 1024)));
+    ui->label_25->setText(QString::number((0 + *sizeCurr + header_meta_size) / (1024 * 1024)));
 }
 
 
