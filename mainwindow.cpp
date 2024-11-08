@@ -109,12 +109,11 @@ void MainWindow::StartSniffing(QString device) {
 void MainWindow::updateOnScrollEvent(int scrollPosition) {
     int startRow = maxScrollValue * (static_cast<double>(scrollPosition) / static_cast<double>(INT_MAX));
     currScrollValue = startRow;
-    int endRow = startRow + rowCount < header.size() ? startRow + rowCount : header.size();
+    int endRow = startRow + rowCount < static_cast<int>(header.size()) ? startRow + rowCount : static_cast<int>(header.size());
 
     UpdateTableWiew(startRow, endRow);
 }
 void MainWindow::updateByTimer() {
-    // Пересчет ползунка
     if(sniffer == nullptr) { return; };
     if (ui->verticalScrollBar->value() != INT_MAX) {
             int temp = INT_MAX * (static_cast<double>(currScrollValue) / static_cast<double>(maxScrollValue));
@@ -124,7 +123,7 @@ void MainWindow::updateByTimer() {
         }
     int startRow = maxScrollValue;
     currScrollValue = startRow;
-    int endRow = startRow + rowCount < header.size() ? startRow + rowCount : header.size();
+    int endRow = startRow + rowCount < static_cast<int>(header.size()) ? startRow + rowCount : static_cast<int>(header.size());
     UpdateTableWiew(startRow, endRow);
 }
 
@@ -139,7 +138,7 @@ void MainWindow::UpdateTableWiew(int startRow, int endRow) {
 void MainWindow::handlePacketCapturedUchar(const struct pcap_pkthdr* hdr, const u_char* dta) {
    header.push_back(hdr);
    pkt_data.push_back(dta);
-   maxScrollValue = header.size() < rowCount ? 0 : header.size() - rowCount;
+   maxScrollValue = static_cast<int>(header.size()) < rowCount ? 0 : static_cast<int>(header.size()) - rowCount;
 
    sizeCurr += sizeof(struct pcap_pkthdr) + hdr->caplen;
 }
