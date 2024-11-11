@@ -15,6 +15,7 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
         graph->setMaxObjects(tempMax, maxValue);
         graph->Repaint();
     }
+
     void PikesGraphBackend::ConstructGraph() {
         layout = new QVBoxLayout;
         QPushButton* button1 = new QPushButton(this);
@@ -73,81 +74,6 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
         }
     }
 
-
-    int PikesGraphBackend::settingsApply () {
-        const std::time_t t = std::time(nullptr);
-        const std::tm* localTime = std::localtime(&t);
-        int tempMax;
-
-        switch (currentSetting) {
-        case hour: // В сутки
-            tempMax = 24;
-            packetData->resize(0);
-            packetData->reserve(24);
-            for (int i = 0; i < 24; ++i) {
-                packetData->push_back(getPacketsInHour(i));
-                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
-            }
-            break;
-        case minute: // В час
-            tempMax = 60;
-            packetData->resize(0);
-            packetData->reserve(60);
-            for (int i = 0; i < 60; ++i) {
-                packetData->push_back(getPacketsInMinute(localTime->tm_hour,i));
-                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
-            }
-            break;
-        case second: // В минуту
-            tempMax = 60;
-            packetData->resize(0);
-            packetData->reserve(60);
-            for (int i = 0; i < 60; ++i) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,i));
-                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
-            }
-            break;
-        case liveH:
-
-            if (localTime->tm_hour != timeLive) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
-                timeLive = localTime->tm_hour;
-            } else {
-                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
-            }
-
-            tempMax = packetData->size();
-            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
-            break;
-        case liveM:
-
-            if (localTime->tm_min != timeLive) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
-                timeLive = localTime->tm_min;
-            } else {
-                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
-            }
-
-            tempMax = packetData->size();
-            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
-            break;
-        case liveS:
-
-            if (localTime->tm_sec != timeLive) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
-                timeLive = localTime->tm_sec;
-            } else {
-                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
-            }
-
-            tempMax = packetData->size();
-            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
-
-            break;
-        }
-        return tempMax;
-    }
-
     void PikesGraphBackend::addPackets() {
         const int max = header->size();
         for (int i = maxSize; i < max; ++i) {
@@ -160,6 +86,68 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
             ++(*vault)[hh][mm][ss];
         }
         maxSize = max;
+    }
+
+
+    int PikesGraphBackend::settingsApply () {
+        const std::time_t t = std::time(nullptr);
+        const std::tm* localTime = std::localtime(&t);
+        int tempMax;
+
+        switch (currentSetting) {
+        case hour: // В сутки
+            tempMax = 24; packetData->resize(0); packetData->reserve(24);
+            for (int i = 0; i < 24; ++i) {
+                packetData->push_back(getPacketsInHour(i));
+                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
+            }
+            break;
+        case minute: // В час
+            tempMax = 60; packetData->resize(0); packetData->reserve(60);
+            for (int i = 0; i < 60; ++i) {
+                packetData->push_back(getPacketsInMinute(localTime->tm_hour,i));
+                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
+            }
+            break;
+        case second: // В минуту
+            tempMax = 60; packetData->resize(0); packetData->reserve(60);
+            for (int i = 0; i < 60; ++i) {
+                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min, i));
+                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
+            }
+            break;
+        case liveH:
+            if (localTime->tm_hour != timeLive) {
+                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
+                timeLive = localTime->tm_hour;
+            } else {
+                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
+            }
+            tempMax = packetData->size();
+            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
+            break;
+        case liveM:
+            if (localTime->tm_min != timeLive) {
+                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
+                timeLive = localTime->tm_min;
+            } else {
+                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
+            }
+            tempMax = packetData->size();
+            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
+            break;
+        case liveS:
+            if (localTime->tm_sec != timeLive) {
+                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
+                timeLive = localTime->tm_sec;
+            } else {
+                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
+            }
+            tempMax = packetData->size();
+            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
+            break;
+        }
+        return tempMax;
     }
 
     int PikesGraphBackend::getPacketsInHour(int hh) {

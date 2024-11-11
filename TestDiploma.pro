@@ -13,7 +13,8 @@ SOURCES += \
     src/NCard/ncardauth.cpp \
     src/Windows/pikegraph.cpp \
     src/Windows/resoursesview.cpp \
-    src/NCard/sniffermonitoring.cpp
+    src/NCard/sniffermonitoring.cpp \
+    src/Windows/roundgraph.cpp
 
 HEADERS += \
     src/NCard/functionstodeterminepacket.h \
@@ -24,7 +25,8 @@ HEADERS += \
     src/Windows/resoursesview.h \
     src/NCard/sniffermonitoring.h \
     packages/service_pcap/misc.h \
-    packages/structs/typesAndStructs.h
+    packages/structs/typesAndStructs.h \
+    src/Windows/roundgraph.h
 
 FORMS += \
     mainwindow.ui \
