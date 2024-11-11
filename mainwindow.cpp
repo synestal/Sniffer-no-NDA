@@ -179,10 +179,14 @@ void MainWindow::onRowClicked(const QModelIndex &index) {
 }
 void MainWindow::AnalysisButtonClicked() {
     if(sniffer == nullptr) { return; };
-    graph = std::make_unique<graphy>();
-    graph->setSrc(header);
-    graph->newChart();
-    graph->exec();
+    //graph = std::make_unique<graphy>();
+    //graph->setSrc(header);
+    //graph->newChart();
+    //graph->exec();
+
+    auto gr = new GraphBackend(this, header, pkt_data);
+    connect(gr, &GraphBackend::closeRequested, this, [=]() {delete gr;});
+    gr->show();
 }
 
 void MainWindow::ResoursesButtonClicked() {

@@ -218,8 +218,147 @@ int graphy::getPacketsInSecond(int hh, int mm, int ss) {
 
 
 
+/*
+ * CLASS RoundGraph
+*/
 
 
+RoundGraph::RoundGraph(std::unordered_map<QString, int>& obj, QWidget *parent)
+        : QDialog(parent), ObjectsCount(&obj) {
+        ConstructGraph();
+}
+
+void RoundGraph::ConstructGraph() {
+    series = new QPieSeries();
+    for (const auto& item : *ObjectsCount) {
+        series->append(item.first, item.second);
+    }
+    for (auto slice : series->slices()) {
+        slice->setLabelVisible(true);
+        slice->setLabel(QString("%1: %2").arg(slice->label()).arg(slice->value()));
+    }
+    chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("Packet Types Distribution");
+    chart->legend()->setVisible(true);
+    chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
+}
+
+void RoundGraph::Repaint() {
+    series->clear();
+    for (const auto& item : *ObjectsCount) {
+        series->append(item.first, item.second);
+    }
+    for (auto slice : series->slices()) {
+        slice->setLabelVisible(true);
+        slice->setLabel(QString("%1: %2").arg(slice->label()).arg(slice->value()));
+    }
+    chartView->repaint();
+}
+
+QChartView* RoundGraph::GetChart() {
+    return chartView;
+}
+
+
+/*
+ * Class GraphBackend
+*/
+
+GraphBackend::GraphBackend(QWidget *parent, std::vector<const struct pcap_pkthdr*>& hdr, std::vector<const uchar*>& dta) : QDialog(parent), header(&hdr), pkt_data(&dta) {
+    QPushButton* button1 = new QPushButton(this);
+    button1->setText("Круговая");
+    QPushButton* button2 = new QPushButton(this);
+    button2->setText("Пиковая");
+    connect(button1, &QPushButton::clicked, this, [this](){createCircleDiagram();});
+    connect(button2, &QPushButton::clicked, this, [this](){createPikeDiagram();});
+    layout = new QVBoxLayout;
+    layout->addWidget(button1);
+    layout->addWidget(button2);
+    setLayout(layout);
+    resize(1920, 1080);
+
+    updateTimer = new QTimer(this);
+    connect(updateTimer, &QTimer::timeout, this, &GraphBackend::Repaint);
+    updateTimer->start(200);
+}
+
+void GraphBackend::closeEvent(QCloseEvent *event) {
+    int response = QMessageBox::question(this, "Закрытие", "Вы уверены, что хотите закрыть окно?");
+    if (response == QMessageBox::Yes) {
+        emit closeRequested();
+        event->accept();
+    } else {
+        event->ignore();
+    }
+}
+
+void GraphBackend::createCircleDiagram() {
+    std::unordered_map<QString, int>* ObjectsCircle = new std::unordered_map<QString, int>;
+    RoundGraph* graph = new RoundGraph(*ObjectsCircle);
+    diagrams.push_back(graph);
+    diagramsStorage.push_back(ObjectsCircle);
+    layout->addWidget(graph->GetChart());
+}
+
+void GraphBackend::createPikeDiagram() {
+    std::array<std::array<std::array<int,60>,60>, 24>* vault = new std::array<std::array<std::array<int,60>,60>, 24>;
+    PikesGraph* graph = new PikesGraph(*vault);
+    //diagrams.push_back(graph);
+    //diagramsStorage.push_back(vault);
+    //layout->addWidget(graph->GetChart());
+}
+
+
+void GraphBackend::setSrc(std::vector<const struct pcap_pkthdr*>& inputHdr, std::vector<const uchar*>& inputDta) {
+    header = &inputHdr;
+    pkt_data = &inputDta;
+}
+
+void GraphBackend::Repaint() {
+    functionsToDeterminePacket* determinator = new functionsToDeterminePacket(*header, *pkt_data);
+
+    auto diagramIt = diagrams.begin();
+    auto storageIt = diagramsStorage.begin();
+    for (; diagramIt != diagrams.end() && storageIt != diagramsStorage.end(); ++diagramIt, ++storageIt) {
+        if (std::holds_alternative<RoundGraph*>(*diagramIt)) {
+            RoundGraph* roundGraph = std::get<RoundGraph*>(*diagramIt);
+            std::unordered_map<QString, int>* ObjectsCircle = std::get<std::unordered_map<QString, int>*>(*storageIt);
+
+            int currSize = header->size();
+            for (int i = roundGraph->maxValCounted; i < currSize; i++) {
+                QString temp = "";
+                determinator->determinatingPacketType(temp, (*pkt_data)[i]);
+                (*ObjectsCircle)[temp]++;
+            }
+            roundGraph->maxValCounted = currSize;
+            roundGraph->Repaint();
+        } else if (std::holds_alternative<PikesGraph*>(*diagramIt)) {
+            //PikesGraph* pikesGraph = std::get<PikesGraph*>(*diagramIt); // Ожидает реализации
+        }
+    }
+    delete determinator;
+}
+
+
+
+void GraphBackend::Cleanup() {
+    for (auto& graph : diagrams) {
+        if (std::holds_alternative<RoundGraph*>(graph)) {
+            delete std::get<RoundGraph*>(graph);
+        } else if (std::holds_alternative<PikesGraph*>(graph)) {
+            delete std::get<PikesGraph*>(graph);
+        }
+    }
+    for (auto& storage : diagramsStorage) {
+        if (std::holds_alternative<std::unordered_map<QString, int>*>(storage)) {
+            delete std::get<std::unordered_map<QString, int>*>(storage);
+        } else if (std::holds_alternative<std::array<std::array<std::array<int, 60>, 60>, 24>*>(storage)) {
+            delete std::get<std::array<std::array<std::array<int, 60>, 60>, 24>*>(storage);
+        }
+    }
+}
 
 
 
