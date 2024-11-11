@@ -303,11 +303,14 @@ void GraphBackend::createCircleDiagram() {
 }
 
 void GraphBackend::createPikeDiagram() {
-    std::array<std::array<std::array<int,60>,60>, 24>* vault = new std::array<std::array<std::array<int,60>,60>, 24>;
-    PikesGraph* graph = new PikesGraph(*vault);
-    //diagrams.push_back(graph);
-    //diagramsStorage.push_back(vault);
-    //layout->addWidget(graph->GetChart());
+    std::array<std::array<std::array<int,60>,60>, 24> vault;
+    std::vector<int> packetData;
+    diagramsStorage.push_back(new std::pair<std::array<std::array<std::array<int,60>,60>, 24>, std::vector<int>>(vault, packetData));
+
+    PikesGraphBackend* picke = new PikesGraphBackend(vault, packetData, *header);
+    diagrams.push_back(picke);
+    qDebug() << (picke->GetLayout() == nullptr);
+    layout->addLayout(picke->GetLayout());
 }
 
 
@@ -334,8 +337,9 @@ void GraphBackend::Repaint() {
             }
             roundGraph->maxValCounted = currSize;
             roundGraph->Repaint();
-        } else if (std::holds_alternative<PikesGraph*>(*diagramIt)) {
-            //PikesGraph* pikesGraph = std::get<PikesGraph*>(*diagramIt); // Ожидает реализации
+        } else if (std::holds_alternative<PikesGraphBackend*>(*diagramIt)) {
+            PikesGraphBackend* pikesGraph = std::get<PikesGraphBackend*>(*diagramIt);
+            pikesGraph->Repaint();
         }
     }
     delete determinator;
@@ -347,18 +351,19 @@ void GraphBackend::Cleanup() {
     for (auto& graph : diagrams) {
         if (std::holds_alternative<RoundGraph*>(graph)) {
             delete std::get<RoundGraph*>(graph);
-        } else if (std::holds_alternative<PikesGraph*>(graph)) {
-            delete std::get<PikesGraph*>(graph);
+        } else if (std::holds_alternative<PikesGraphBackend*>(graph)) {
+            delete std::get<PikesGraphBackend*>(graph);
         }
     }
     for (auto& storage : diagramsStorage) {
         if (std::holds_alternative<std::unordered_map<QString, int>*>(storage)) {
             delete std::get<std::unordered_map<QString, int>*>(storage);
-        } else if (std::holds_alternative<std::array<std::array<std::array<int, 60>, 60>, 24>*>(storage)) {
-            delete std::get<std::array<std::array<std::array<int, 60>, 60>, 24>*>(storage);
+        } else if (std::holds_alternative<std::pair<std::array<std::array<std::array<int,60>,60>, 24>, std::vector<int>>*>(storage)) {
+            delete std::get<std::pair<std::array<std::array<std::array<int,60>,60>, 24>, std::vector<int>>*>(storage);
         }
     }
 }
+
 
 
 

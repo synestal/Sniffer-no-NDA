@@ -22,6 +22,7 @@
 
 
 #include "src/NCard/functionstodeterminepacket.h"
+#include "src/Windows/pikegraph.h"
 
 
 class graphy : public QDialog {
@@ -69,47 +70,7 @@ private:
 
 
 
-class PikesGraph : public QDialog {
-    Q_OBJECT
-public:
-    explicit PikesGraph(std::array<std::array<std::array<int,60>,60>, 24>& obj, QWidget *parent = nullptr) : QDialog(parent), vault(&obj) {
-        ConstructGraph();
-    }
 
-    QChartView* GetChart() {
-        return chartView;
-    }
-    int maxSize = 0;
-    int maxValue = 0;
-
-public slots:
-    void Repaint() {
-
-    }
-private:
-    void ConstructGraph() {
-        series = new QLineSeries();
-        chart->addSeries(series);
-        chart->setTitle("Распределение количества пакетов от времени");
-        axisX->setTitleText("Время");
-        chart->addAxis(axisX, Qt::AlignBottom);
-        series->attachAxis(axisX);
-        axisY->setTitleText("Количество пакетов");
-        chart->addAxis(axisY, Qt::AlignLeft);
-        series->attachAxis(axisY);
-        chartView = new QChartView(chart);
-        chartView->setRenderHint(QPainter::Antialiasing);
-    }
-
-    QChartView *chartView = nullptr;
-    QChart* chart;
-    QValueAxis *axisX;
-    QValueAxis *axisY;
-    QLineSeries* series;
-
-    std::array<std::array<std::array<int,60>,60>, 24>* vault;
-
-};
 
 
 
@@ -132,8 +93,8 @@ private:
 
 
 
-using GraphPtr = std::variant<RoundGraph*, PikesGraph*>;
-using GraphStoragePtr = std::variant<std::unordered_map<QString, int>*, std::array<std::array<std::array<int,60>,60>, 24>*>;
+using GraphPtr = std::variant<RoundGraph*, PikesGraphBackend*>;
+using GraphStoragePtr = std::variant<std::unordered_map<QString, int>*, std::pair<std::array<std::array<std::array<int,60>,60>, 24>, std::vector<int>>*>;
 
 class GraphBackend : public QDialog {
     Q_OBJECT
@@ -149,13 +110,11 @@ public:
     void createPikeDiagram();
 
     void setSrc(std::vector<const struct pcap_pkthdr*>& inputHdr, std::vector<const uchar*>& inputDta);
-
 public slots:
     void Repaint();
 
 private:
     void Cleanup();
-
 
     std::vector<const struct pcap_pkthdr*>*  header = nullptr;
     std::vector<const uchar*>* pkt_data = nullptr;
@@ -167,13 +126,13 @@ private:
     QTimer *updateTimer = nullptr;
 
     //Unused
-    QVector<int> packetData;
     int timeLive = -1;
     void addPackets();
     int getPacketsInHour(int);
     int getPacketsInMinute(int, int);
     int getPacketsInSecond(int, int, int);
     int settingsApply();
+
 };
 
 #endif // GRAPHY_H

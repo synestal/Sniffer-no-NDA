@@ -11,6 +11,7 @@ SOURCES += \
     mainwindow.cpp \
     packages/service_pcap/misc.cpp \
     src/NCard/ncardauth.cpp \
+    src/Windows/pikegraph.cpp \
     src/Windows/resoursesview.cpp \
     src/NCard/sniffermonitoring.cpp
 
@@ -19,6 +20,7 @@ HEADERS += \
     src/Windows/graphy.h \
     mainwindow.h \
     src/NCard/ncardauth.h \
+    src/Windows/pikegraph.h \
     src/Windows/resoursesview.h \
     src/NCard/sniffermonitoring.h \
     packages/service_pcap/misc.h \
