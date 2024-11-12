@@ -27,19 +27,31 @@ public:
         return chartView;
     }
 
-    void setMaxObjects(int maxSize, int maxValue) {
+    void setMaxObjects(int maxSize, int maxValue, int prevMaxSize) {
         this->maxSize = maxSize;
         this->maxValue = maxValue;
+        if((this->prevMaxSize != prevMaxSize && this->prevMaxSize == 0) || prevMaxSize == 0) {series->clear();}
+        this->prevMaxSize = prevMaxSize;
     }
 
 public slots:
     void Repaint() {
-        series->clear(); // Очистить старые данные
-        for (int i = 0; i < packetData->size(); ++i) {
-            series->append(i, (*packetData)[i]);
-        }
         axisX->setRange(0, maxSize);
         axisY->setRange(0, maxValue);
+        if (!series->points().isEmpty()) { // Изменяем значение последней точки
+            QPointF lastPoint = series->at(series->count() - 1);
+            if (lastPoint.x() + 1 == packetData->size()) {
+                series->replace(lastPoint, QPointF(lastPoint.x(), (*packetData)[lastPoint.x()]));
+            } else {
+                for (int i = lastPoint.x(); i < packetData->size(); ++i) {
+                    series->append(i, (*packetData)[i]);
+                }
+            }
+            return;
+        }
+        for (int i = 0; i < packetData->size(); ++i) { // Наполняем модель точками
+            series->append(i, (*packetData)[i]);
+        }
     }
 private:
     void ConstructGraph() {
@@ -62,6 +74,8 @@ private:
 
     int maxSize = 0;
     int maxValue = 0;
+
+    int prevMaxSize = 0;
 
     QChartView *chartView = nullptr;
     QChart* chart = nullptr;
@@ -104,6 +118,8 @@ private:
     int timeLive = -1;
     int maxSize = 0;
     int maxValue = 0;
+
+    int prevMaxSize = 0;
 
     enum Settings {hour, minute, second, liveH, liveM, liveS};
     Settings currentSetting = second;

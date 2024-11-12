@@ -12,7 +12,7 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
     void PikesGraphBackend::Repaint() {
         addPackets();
         int tempMax = settingsApply();
-        graph->setMaxObjects(tempMax, maxValue);
+        graph->setMaxObjects(tempMax, maxValue, prevMaxSize);
         graph->Repaint();
     }
 
@@ -52,6 +52,7 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
         packetData->resize(0);
         timeLive = -1;
         maxValue = 0;
+        prevMaxSize = 0;
         switch (mode) {
         case 1:
             currentSetting = hour;
@@ -92,7 +93,7 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
     int PikesGraphBackend::settingsApply () {
         const std::time_t t = std::time(nullptr);
         const std::tm* localTime = std::localtime(&t);
-        int tempMax;
+        int tempMax = 0;
 
         switch (currentSetting) {
         case hour: // В сутки
@@ -124,6 +125,7 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
                 packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
             }
             tempMax = packetData->size();
+            prevMaxSize = tempMax;
             maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
             break;
         case liveM:
@@ -134,6 +136,7 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
                 packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
             }
             tempMax = packetData->size();
+            prevMaxSize = tempMax;
             maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
             break;
         case liveS:
@@ -144,6 +147,7 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
                 packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
             }
             tempMax = packetData->size();
+            prevMaxSize = tempMax;
             maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
             break;
         }
