@@ -19,8 +19,8 @@
 
 
 #include "src/NCard/functionstodeterminepacket.h"
-#include "src/Windows/pikegraph.h"
-#include "src/Windows/roundgraph.h"
+#include "src/Windows/graphs/pike/pikegraph.h"
+#include "src/Windows/graphs/round/roundgraph.h"
 
 
 

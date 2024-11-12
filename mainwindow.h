@@ -29,7 +29,7 @@
 #include "packages/service_pcap/misc.h"
 #include "src/NCard/sniffermonitoring.h"
 #include "src/NCard/functionstodeterminepacket.h"
-#include "src/Windows/graphy.h"
+#include "src/Windows/graphs/graphy.h"
 #include "src/Windows/resoursesview.h"
 
 

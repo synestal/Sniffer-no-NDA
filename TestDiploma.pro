@@ -6,27 +6,27 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++17
 SOURCES += \
     src/NCard/functionstodeterminepacket.cpp \
-    src/Windows/graphy.cpp \
+    src/Windows/graphs/graphy.cpp \
     main.cpp \
     mainwindow.cpp \
     packages/service_pcap/misc.cpp \
     src/NCard/ncardauth.cpp \
-    src/Windows/pikegraph.cpp \
+    src/Windows/graphs/pike/pikegraph.cpp \
     src/Windows/resoursesview.cpp \
     src/NCard/sniffermonitoring.cpp \
-    src/Windows/roundgraph.cpp
+    src/Windows/graphs/round/roundgraph.cpp
 
 HEADERS += \
     src/NCard/functionstodeterminepacket.h \
-    src/Windows/graphy.h \
+    src/Windows/graphs/graphy.h \
     mainwindow.h \
     src/NCard/ncardauth.h \
-    src/Windows/pikegraph.h \
+    src/Windows/graphs/pike/pikegraph.h \
     src/Windows/resoursesview.h \
     src/NCard/sniffermonitoring.h \
     packages/service_pcap/misc.h \
     packages/structs/typesAndStructs.h \
-    src/Windows/roundgraph.h
+    src/Windows/graphs/round/roundgraph.h
 
 FORMS += \
     mainwindow.ui \

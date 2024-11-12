@@ -1,4 +1,4 @@
-#include "src/Windows/pikegraph.h"
+#include "src/Windows/graphs/pike/pikegraph.h"
 
 PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60>, 24>& obj, std::vector<int>& vect, std::vector<const struct pcap_pkthdr*>& hdr, QWidget *parent)
         : QDialog(parent), vault(&obj), packetData(&vect), header(&hdr) {
