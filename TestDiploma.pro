@@ -6,6 +6,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++17
 SOURCES += \
     src/NCard/functionstodeterminepacket.cpp \
+    src/Windows/graphs/graphchoosing.cpp \
     src/Windows/graphs/graphy.cpp \
     main.cpp \
     mainwindow.cpp \
@@ -18,6 +19,7 @@ SOURCES += \
 
 HEADERS += \
     src/NCard/functionstodeterminepacket.h \
+    src/Windows/graphs/graphchoosing.h \
     src/Windows/graphs/graphy.h \
     mainwindow.h \
     src/NCard/ncardauth.h \
@@ -30,6 +32,7 @@ HEADERS += \
 
 FORMS += \
     mainwindow.ui \
+    src/Windows/graphs/graphchoosing.ui \
     src/Windows/resoursesview.ui
 
 # Default rules for deployment.

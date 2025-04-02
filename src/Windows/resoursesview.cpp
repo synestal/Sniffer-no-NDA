@@ -33,20 +33,24 @@ void ResoursesView::UpdateData() {
                     }
                 }
             }
-    #elif defined(Q_OS_LINUX)
+    #elif defined(Q_OS_LINUX) // Доделать
         process1.start("ps", QStringList() << "-o" << "rss=" << "-p" << QString::number(getpid()));
         process1.waitForFinished();
         QString output1 = process1.readAllStandardOutput().trimmed();
     #endif
-
-    ui->label_21->setText(output1 + " Кб");
-
+    bool ok;
+    int output1Int = output1.toInt(&ok);
+    if (ok) {
+        ui->label_21->setText(QString::number(output1Int / 1024) + " Мб");
+    } else {
+        ui->label_21->setText(output1 + " Кб");
+    }
     size_t header_meta_size = header->capacity() * sizeof(const struct pcap_pkthdr*);
 
 
-    ui->label_23->setText(QString::number(0 / (1024)) + " Кб"); // Заменить 0 на val1
-    ui->label_24->setText(QString::number((*sizeCurr + header_meta_size) / (1024)) + " Кб");
-    ui->label_25->setText(QString::number((0 + *sizeCurr + header_meta_size) / (1024)) + " Кб");
+    ui->label_23->setText(QString::number(0 / (1024 * 1024)) + " Мб"); // Заменить 0 на val1
+    ui->label_24->setText(QString::number((*sizeCurr + header_meta_size) / (1024 * 1024)) + " Мб");
+    ui->label_25->setText(QString::number((0 + *sizeCurr + header_meta_size) / (1024 * 1024)) + " Мб");
 }
 
 

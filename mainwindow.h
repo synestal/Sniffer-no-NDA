@@ -32,6 +32,8 @@
 #include "src/Windows/graphs/graphy.h"
 #include "src/Windows/resoursesview.h"
 
+#include "src/Windows/graphs/graphchoosing.h"
+
 
 
 
@@ -204,7 +206,7 @@ private:
     int rowCount = 15;
 
     // Ресурсы для кнопок
-    std::unique_ptr<GraphBackend> graph = nullptr;
+    std::unique_ptr<GraphChoosing> graph = nullptr;
     std::unique_ptr<ResoursesView> resourse = nullptr;
 
     // Переопределенные события

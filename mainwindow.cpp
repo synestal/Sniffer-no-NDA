@@ -27,7 +27,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::AnalysisButtonClicked);
     connect(ui->ResoursesButton, &QPushButton::clicked, this, &MainWindow::ResoursesButtonClicked);
-
     updateTimer = new QTimer(this);
     connect(updateTimer, &QTimer::timeout, this, &MainWindow::updateByTimer);
     updateTimer->start(200);
@@ -180,9 +179,10 @@ void MainWindow::onRowClicked(const QModelIndex &index) {
 void MainWindow::AnalysisButtonClicked() {
     if(sniffer == nullptr) { return; };
 
-    auto gr = new GraphBackend(this, header, pkt_data);
-    connect(gr, &GraphBackend::closeRequested, this, [=]() {delete gr;});
-    gr->show();
+    graph = std::make_unique<GraphChoosing>(this, header, pkt_data);
+    qDebug() << "Out of constructor";
+    connect(graph.get(), &GraphChoosing::closeRequested, this, [=]() {graph = nullptr;});
+    graph->show();
 }
 
 void MainWindow::ResoursesButtonClicked() {
