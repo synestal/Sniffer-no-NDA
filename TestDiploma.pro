@@ -48,6 +48,8 @@ INCLUDEPATH += \
     libs/npcap-sdk-1.13/Include
     C:/Windows/System32/Npcap
 
+INCLUDEPATH += $$PWD/libs/clickhouse-cpp
+
 # Пути к библиотекам
 LIBS += \
     # -L$$PWD/libs/PcapPlusPlus-master/builded/lib -lPcap++ -lCommon++ -lPacket++ \
@@ -57,8 +59,30 @@ LIBS += \
 LIBS += -liphlpapi
 LIBS += -lws2_32
 
+INCLUDEPATH += $$PWD/libs/abseil-cpp
+INCLUDEPATH += $$PWD/libs/cityhash/src
+LIBS += -L$$PWD/libs/abseil-cpp/build/absl/base/Debug -labsl_base
+LIBS += -L$$PWD/libs/abseil-cpp/build/absl/numeric/Debug -labsl_int128
+LIBS += -L$$PWD/libs/abseil-cpp/build/absl/container/Debug -labsl_raw_hash_set
+
+LIBS += -L$$PWD/libs/clickhouse-cpp/build/clickhouse/Debug -lclickhouse-cpp-lib
+
+SOURCES += $$PWD/libs/cityhash/src/city.cc
+HEADERS += $$PWD/libs/cityhash/src/city.h
+
+INCLUDEPATH += $$PWD/libs/lz4/lib
+
+SOURCES += $$PWD/libs/lz4/lib/lz4.c
+INCLUDEPATH += $$PWD/libs/lz4/lib
+
+LIBS += "$$PWD/libs/zstd/build/VS2010/bin/x64_Debug/libzstd.lib"
+QMAKE_RPATHDIR += "$$PWD/libs/zstd/build/VS2010/bin/x64_Debug"
+INCLUDEPATH += $$PWD/libs/zstd/lib
+
+
 # Пути для зависимостей
 DEPENDPATH += \
     libs/PcapPlusPlus-master/builded/include/pcapplusplus \
     libs/PcapPlusPlus-master/builded/include \
-    libs/npcap-sdk-1.13/Include
+    libs/npcap-sdk-1.13/Include \
+    $$PWD/libs/clickhouse-cpp \

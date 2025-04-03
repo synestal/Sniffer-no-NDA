@@ -15,6 +15,9 @@
 #include "packages/service_pcap/misc.h"
 
 
+#include "clickhouse/client.h"
+
+
 #include "packages/structs/typesAndStructs.h"
 
 
@@ -37,14 +40,29 @@ protected:
             qDebug() << "Unable to open the adapter:" << errbuf;
             return;
         }
+        dumper = pcap_dump_open(handle, "C:/Users/kostr/Documents/TestDiploma/output.pcap");
+        if (!dumper) {
+            qDebug() << "Ошибка открытия PCAP файла для записи:" << pcap_geterr(handle);
+            pcap_close(handle);
+            return;
+        }
+
+        clickhouse::Client client(
+            clickhouse::ClientOptions().SetHost("localhost")
+        );
+
+        client.Execute("CREATE TABLE test (id UInt64) ENGINE = Memory");
+
         try {
-            pcap_loop(handle, 0, packetHandler, (u_char*)this);
+            pcap_loop(handle, 0, packetHandler, reinterpret_cast<u_char*>(this));
         } catch (...) {
             pcap_close(handle);
+            pcap_dump_close(dumper);
             throw;
         }
 
         pcap_close(handle);
+        pcap_dump_close(dumper);
     }
 
 signals:
@@ -56,6 +74,7 @@ private:
 
     QString deviceName = "";
     pcap_t *handle = nullptr;
+    pcap_dumper_t *dumper = nullptr;
 };
 
 

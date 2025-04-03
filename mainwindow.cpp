@@ -1,6 +1,5 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
-
 /*
  *  Альфа-версия (стабильная)
  *
@@ -128,8 +127,8 @@ void MainWindow::updateByTimer() {
 
 void MainWindow::UpdateTableWiew(int startRow, int endRow) {
     TableStorage.resize(rowCount);
-    functionsToDeterminePacket* determinator = new functionsToDeterminePacket(header, pkt_data);
-    determinator->mainhandler(TableStorage, startRow, endRow);
+    functionsToDeterminePacket* determinator = new functionsToDeterminePacket(header, pkt_data); // Расшифровываем пакеты
+    determinator->mainhandler(TableStorage, startRow, endRow); // Заполняем буфер пакетами
     model->setDisplayRange(0, endRow - startRow);
     delete determinator;
 }
