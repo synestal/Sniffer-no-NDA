@@ -17,7 +17,7 @@
 
 #include "clickhouse/client.h"
 
-
+#include "ClickHouseInsertThread.h"
 #include "packages/structs/typesAndStructs.h"
 
 
@@ -26,10 +26,20 @@ class SnifferMonitoring : public QThread {
 
 public:
     explicit SnifferMonitoring(QString device, QObject *parent = nullptr)
-           : QThread(parent),
-             client(clickhouse::ClientOptions().SetHost("localhost")),
-             deviceName(device) {}
-    ~SnifferMonitoring() {qDebug() << "destructed!!!!!!";}
+        : QThread(parent), deviceName(device)
+    {
+        client = new clickhouse::Client(clickhouse::ClientOptions().SetHost("localhost"));
+        insertThread = new ClickHouseInsertThread(client); // Теперь передаем client*
+        insertThread->start();
+    }
+    ~SnifferMonitoring() {
+        if (insertThread) {
+            insertThread->quit();
+            insertThread->wait();
+            delete insertThread;
+        }
+        qDebug() << "destructed!!!!!!";
+    }
     void stopSniffing() { if (handle) {
             pcap_breakloop(handle); wait();
         }               }
@@ -44,7 +54,7 @@ protected:
             return;
         }
 
-        client.Execute("CREATE TABLE IF NOT EXISTS packets (\
+        client->Execute("CREATE TABLE IF NOT EXISTS packets (\
                        ts DateTime,\
                        caplen UInt32,\
                        len UInt32,\
@@ -68,7 +78,8 @@ signals:
 private:
     static void packetHandler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);
 
-    clickhouse::Client client;
+    clickhouse::Client* client;
+    ClickHouseInsertThread* insertThread;  // Поток для вставки данных
     QString deviceName = "";
     pcap_t *handle = nullptr;
 };

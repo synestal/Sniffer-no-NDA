@@ -18,6 +18,7 @@ SOURCES += \
     src/Windows/graphs/round/roundgraph.cpp
 
 HEADERS += \
+    src/NCard/ClickHouseInsertThread.h \
     src/NCard/functionstodeterminepacket.h \
     src/Windows/graphs/graphchoosing.h \
     src/Windows/graphs/graphy.h \
@@ -28,7 +29,8 @@ HEADERS += \
     src/NCard/sniffermonitoring.h \
     packages/service_pcap/misc.h \
     packages/structs/typesAndStructs.h \
-    src/Windows/graphs/round/roundgraph.h
+    src/Windows/graphs/round/roundgraph.h \
+    src/NCard/ClickHouseInsertThread.h
 
 FORMS += \
     mainwindow.ui \

@@ -38,9 +38,7 @@ void SnifferMonitoring::packetHandler(u_char *param, const struct pcap_pkthdr *h
 
     // Вставляем в ClickHouse
     try {
-        qDebug() << "Inserting packet data into ClickHouse...";
-        sniffer->client.Insert("packets", block);
-        qDebug() << "Insert successful!";
+        sniffer->client->Insert("packets", block);
     } catch (const std::exception &e) {
         qDebug() << "ClickHouse insert failed:" << e.what();
     }
