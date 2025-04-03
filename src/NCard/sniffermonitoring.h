@@ -25,7 +25,10 @@ class SnifferMonitoring : public QThread {
     Q_OBJECT
 
 public:
-    SnifferMonitoring(QString device, QObject *parent = nullptr) : QThread(parent), deviceName(device) {};
+    explicit SnifferMonitoring(QString device, QObject *parent = nullptr)
+           : QThread(parent),
+             client(clickhouse::ClientOptions().SetHost("localhost")),
+             deviceName(device) {}
     ~SnifferMonitoring() {qDebug() << "destructed!!!!!!";}
     void stopSniffing() { if (handle) {
             pcap_breakloop(handle); wait();
@@ -40,11 +43,14 @@ protected:
             qDebug() << "Unable to open the adapter:" << errbuf;
             return;
         }
-        clickhouse::Client client(
-            clickhouse::ClientOptions().SetHost("localhost")
-        );
 
-        client.Execute("CREATE TABLE test (id UInt64) ENGINE = Memory");
+        client.Execute("CREATE TABLE IF NOT EXISTS packets (\
+                       ts DateTime,\
+                       caplen UInt32,\
+                       len UInt32,\
+                       data String\
+                   ) ENGINE = MergeTree()\
+                   ORDER BY ts;");
 
         try {
             pcap_loop(handle, 0, packetHandler, reinterpret_cast<u_char*>(this));
@@ -62,7 +68,7 @@ signals:
 private:
     static void packetHandler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);
 
-
+    clickhouse::Client client;
     QString deviceName = "";
     pcap_t *handle = nullptr;
 };
