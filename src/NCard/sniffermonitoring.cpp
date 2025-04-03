@@ -13,8 +13,6 @@ void SnifferMonitoring::packetHandler(u_char *param, const struct pcap_pkthdr *h
 
     if (!sniffer) { return; }
 
-    pcap_dump(reinterpret_cast<u_char*>(sniffer->dumper), header, pkt_data);
-
     pcap_pkthdr *headerCopy = new pcap_pkthdr(*header);
     u_char *pktDataCopy = new u_char[header->len];
     std::memcpy(pktDataCopy, pkt_data, header->len);
