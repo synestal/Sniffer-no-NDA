@@ -2,6 +2,7 @@
 #define DUCKDBMAINTENANCETHREAD_H
 
 #include <QThread>
+#include <QFileInfo>
 #include <QMutex>
 #include <QDebug>
 #include <QWaitCondition>
@@ -26,32 +27,39 @@ public:
 
 protected:
     void run() override {
-        constexpr int optimizeIntervalSeconds = 30;
-        constexpr int vacuumIntervalSeconds = 300;
+        constexpr int optimizeIntervalSeconds = 60;
+        constexpr int vacuumEveryN = 5; // раз в 5 циклов оптимизации
 
         int counter = 0;
+        while (!stop_) {
+            const QString dbPath = "packets.db";
+            QFileInfo dbInfo(dbPath);
+            qint64 sizeBefore = dbInfo.size();
 
-        while (true) {
-            {
-                QMutexLocker locker(&mutex_);
-                if (stop_) break;
-            }
+            QString timestamp = QDateTime::currentDateTime().toString(Qt::ISODate);
+            qDebug() << QString("[%1] [DuckDBMaintenance] Starting optimization (cycle %2)...")
+                            .arg(timestamp).arg(counter + 1);
 
-            if (counter % (vacuumIntervalSeconds / optimizeIntervalSeconds) == 0) {
-                qDebug() << "[DuckDBMaintenance] Running VACUUM...";
+            con->Query("PRAGMA optimize;");
+            con->Query("ANALYZE;");
+
+            if (++counter % vacuumEveryN == 0) {
+                qDebug() << QString("[%1] [DuckDBMaintenance] Running VACUUM...").arg(timestamp);
                 con->Query("VACUUM;");
-            } else {
-                qDebug() << "[DuckDBMaintenance] Running PRAGMA optimize...";
-                con->Query("PRAGMA optimize;");
             }
 
-            for (int i = 0; i < optimizeIntervalSeconds; ++i) {
-                QMutexLocker locker(&mutex_);
-                if (stop_) return;
-                waitCond_.wait(&mutex_, 1000);
-            }
+            // обновим инфу после оптимизации
+            dbInfo.refresh();
+            qint64 sizeAfter = dbInfo.size();
 
-            counter++;
+            qDebug() << QString("[%1] [DuckDBMaintenance] DB size: %2 KB -> %3 KB")
+                            .arg(timestamp)
+                            .arg(sizeBefore / 1024)
+                            .arg(sizeAfter / 1024);
+
+            for (int i = 0; i < optimizeIntervalSeconds && !stop_; ++i) {
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
         }
     }
 

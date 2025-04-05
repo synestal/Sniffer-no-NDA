@@ -1,6 +1,8 @@
 QT += core gui charts
 DEFINES += NOMINMAX
 
+QMAKE_CXXFLAGS += /wd4100
+
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += c++17console
