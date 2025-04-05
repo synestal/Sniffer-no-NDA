@@ -17,6 +17,6 @@ void SnifferMonitoring::packetHandler(u_char *param, const struct pcap_pkthdr *h
     u_char *pktDataCopy = new u_char[header->len];
     std::memcpy(pktDataCopy, pkt_data, header->len);
 
-    //emit sniffer->packetCapturedUchar(headerCopy, pktDataCopy);
-    emit sniffer->packetIsReadyToBeSentClickHouse(headerCopy, pktDataCopy);
+    emit sniffer->packetCapturedUchar(headerCopy, pktDataCopy);
+    emit sniffer->packetIsReadyToBeSentToDB(headerCopy, pktDataCopy);
 }
