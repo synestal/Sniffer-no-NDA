@@ -26,20 +26,26 @@ public:
         db = std::make_shared<duckdb::DuckDB>("packets.db"); // Файл БД
         con = std::make_shared<duckdb::Connection>(*db);
         ensureTableExists();
+        con->Query("PRAGMA memory_limit='10MB';");
     }
+
+
 
     ~DuckDBInsertThread() {
         stop();
+        // Освобождаем умные указатели
+        con.reset();
+        db.reset();
     }
 
     static constexpr int maxQueueSize = 10000;
 
-    void addPacket(const struct pcap_pkthdr* header, const u_char* pkt_data) {
+    void addPacket(const struct pcap_pkthdr header, const QByteArray data) {
         QMutexLocker locker(&mutex_);
         if (packetQueue_.size() >= maxQueueSize) {
             packetQueue_.dequeue();
         }
-        packetQueue_.enqueue({ *header, QByteArray(reinterpret_cast<const char*>(pkt_data), header->caplen) });
+        packetQueue_.enqueue({ header, data });
         cond_.wakeOne();
     }
 
@@ -60,8 +66,6 @@ protected:
         constexpr int batchSize = 10000;
         constexpr int waitTimeMs = 10;
 
-        duckdb::Appender appender(*con, "packets");
-
         while (true) {
             QMutexLocker locker(&mutex_);
             while (packetQueue_.isEmpty() && !stop_) {
@@ -70,31 +74,43 @@ protected:
             if (stop_ && packetQueue_.isEmpty()) break;
 
             int count = 0;
-
-            con->Query("BEGIN TRANSACTION;");
+            std::vector<std::tuple<pcap_pkthdr, QByteArray>> batch;
+            batch.reserve(batchSize); // Резервируем память для оптимизации
 
             while (!packetQueue_.isEmpty() && count < batchSize) {
-                auto [header, pkt_data] = packetQueue_.dequeue();
-                locker.unlock();
-
-                appender.BeginRow();
-                appender.Append<int64_t>(header.ts.tv_sec);  // timestamp
-                appender.Append<uint16_t>(header.caplen);    // caplen
-                appender.Append<uint16_t>(header.len);       // len
-                appender.Append(duckdb::Value::BLOB(
-                    reinterpret_cast<duckdb::const_data_ptr_t>(pkt_data.constData()), pkt_data.size()));
-                appender.EndRow();
-
-                pkt_data.clear();
+                auto pair = packetQueue_.dequeue();
+                // Используем std::move для избежания копирования данных
+                batch.push_back(std::make_tuple(pair.first, std::move(pair.second)));
                 count++;
-                locker.relock();
+            }
+            locker.unlock();
+
+            if (!batch.empty()) {
+                try {
+                    con->Query("BEGIN TRANSACTION;");
+                    {
+                        // Создаем Appender в блоке для автоматического освобождения
+                        duckdb::Appender appender(*con, "packets");
+                        for (auto &[header, pkt_data] : batch) {
+                            appender.BeginRow();
+                            appender.Append<int64_t>(header.ts.tv_sec);
+                            appender.Append<uint16_t>(header.caplen);
+                            appender.Append<uint16_t>(header.len);
+                            appender.Append(duckdb::Value::BLOB(
+                                reinterpret_cast<duckdb::const_data_ptr_t>(pkt_data.constData()), pkt_data.size()));
+                            appender.EndRow();
+                        }
+                        appender.Flush();
+                        appender.Close(); // Явно закрываем Appender
+                    }
+                    con->Query("COMMIT;");
+                } catch (const std::exception& e) {
+                    qWarning() << "Exception in database operation: " << e.what();
+                    con->Query("ROLLBACK;"); // Откатываем транзакцию в случае ошибки
+                }
             }
 
-            appender.Flush();
-            con->Query("COMMIT;");
-
             if (count < batchSize) {
-                locker.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(waitTimeMs));
             }
         }
@@ -102,15 +118,19 @@ protected:
 
 private:
     void ensureTableExists() {
-        qDebug() << "Using DB at:" << QDir::currentPath();
-        con->Query(
-            "CREATE TABLE IF NOT EXISTS packets ("
-            "ts INTEGER, "
-            "caplen SMALLINT, "
-            "len SMALLINT, "
-            "data BLOB"
-            ") WITH (compression='zlib');"
-        );
+        try {
+            qDebug() << "Using DB at:" << QDir::currentPath();
+            con->Query(
+                "CREATE TABLE IF NOT EXISTS packets ("
+                "ts INTEGER, "
+                "caplen SMALLINT, "
+                "len SMALLINT, "
+                "data BLOB"
+                ") WITH (compression='zlib');"
+            );
+        } catch (const std::exception& e) {
+            qWarning() << "Failed to create table: " << e.what();
+        }
     }
 
     std::shared_ptr<duckdb::DuckDB> db;

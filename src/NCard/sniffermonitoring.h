@@ -68,7 +68,7 @@ protected:
 
 signals:
     void packetCapturedUchar(const struct pcap_pkthdr*, const u_char*);
-    void packetIsReadyToBeSentToDB(const struct pcap_pkthdr*, const u_char*);
+    void packetIsReadyToBeSentToDB(const struct pcap_pkthdr, const QByteArray);
 
 private:
     static void packetHandler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);
