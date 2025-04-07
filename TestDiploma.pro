@@ -1,9 +1,12 @@
 QT += core gui charts
 DEFINES += NOMINMAX
 
+QMAKE_CXXFLAGS += /wd4100
+
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += c++17
+CONFIG += c++17console
+CONFIG -= app_bundle
 SOURCES += \
     src/NCard/functionstodeterminepacket.cpp \
     src/Windows/graphs/graphchoosing.cpp \
@@ -18,6 +21,9 @@ SOURCES += \
     src/Windows/graphs/round/roundgraph.cpp
 
 HEADERS += \
+    src/NCard/DuckDBInsertThread.h \
+    src/NCard/DuckDBInsertThread.h \
+    src/NCard/DuckDBMaintenanceThread.h \
     src/NCard/functionstodeterminepacket.h \
     src/Windows/graphs/graphchoosing.h \
     src/Windows/graphs/graphy.h \
@@ -57,8 +63,13 @@ LIBS += \
 LIBS += -liphlpapi
 LIBS += -lws2_32
 
+
+INCLUDEPATH += $$PWD/libs/duckdb
+LIBS += -L$$PWD/libs/duckdb -lduckdb
+
+
 # Пути для зависимостей
 DEPENDPATH += \
     libs/PcapPlusPlus-master/builded/include/pcapplusplus \
     libs/PcapPlusPlus-master/builded/include \
-    libs/npcap-sdk-1.13/Include
+    libs/npcap-sdk-1.13/Include \
