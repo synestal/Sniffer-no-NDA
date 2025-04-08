@@ -28,18 +28,11 @@ public:
         ensureTableExists();
         con->Query("PRAGMA memory_limit='10MB';");
     }
-
-
-
     ~DuckDBInsertThread() {
         stop();
-        // Освобождаем умные указатели
         con.reset();
         db.reset();
     }
-
-    static constexpr int maxQueueSize = 10000;
-
     void addPacket(const struct pcap_pkthdr header, const QByteArray data) {
         QMutexLocker locker(&mutex_);
         if (packetQueue_.size() >= maxQueueSize) {
@@ -48,7 +41,6 @@ public:
         packetQueue_.enqueue({ header, data });
         cond_.wakeOne();
     }
-
     void stop() {
         {
             QMutexLocker locker(&mutex_);
@@ -57,6 +49,8 @@ public:
         cond_.wakeOne();
         wait();
     }
+
+    static constexpr int maxQueueSize = 10000;
     std::shared_ptr<duckdb::Connection> getConnection() const {
         return con;
     }
@@ -65,21 +59,17 @@ protected:
     void run() override {
         constexpr int batchSize = 10000;
         constexpr int waitTimeMs = 10;
-
         while (true) {
             QMutexLocker locker(&mutex_);
             while (packetQueue_.isEmpty() && !stop_) {
                 cond_.wait(&mutex_);
             }
             if (stop_ && packetQueue_.isEmpty()) break;
-
             int count = 0;
             std::vector<std::tuple<pcap_pkthdr, QByteArray>> batch;
-            batch.reserve(batchSize); // Резервируем память для оптимизации
-
+            batch.reserve(batchSize);
             while (!packetQueue_.isEmpty() && count < batchSize) {
                 auto pair = packetQueue_.dequeue();
-                // Используем std::move для избежания копирования данных
                 batch.push_back(std::make_tuple(pair.first, std::move(pair.second)));
                 count++;
             }
@@ -89,7 +79,6 @@ protected:
                 try {
                     con->Query("BEGIN TRANSACTION;");
                     {
-                        // Создаем Appender в блоке для автоматического освобождения
                         duckdb::Appender appender(*con, "packets");
                         for (auto &[header, pkt_data] : batch) {
                             appender.BeginRow();
@@ -101,12 +90,12 @@ protected:
                             appender.EndRow();
                         }
                         appender.Flush();
-                        appender.Close(); // Явно закрываем Appender
+                        appender.Close();
                     }
                     con->Query("COMMIT;");
                 } catch (const std::exception& e) {
                     qWarning() << "Exception in database operation: " << e.what();
-                    con->Query("ROLLBACK;"); // Откатываем транзакцию в случае ошибки
+                    con->Query("ROLLBACK;");
                 }
             }
 

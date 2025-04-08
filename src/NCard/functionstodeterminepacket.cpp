@@ -9,9 +9,9 @@
  *
 */
 void functionsToDeterminePacket::mainhandler(std::vector<packet_info>& vect, int start, int end) {
-    for (int i = start; i < end; ++i) {
-        vect[i - start] = determinator(header[i], pkt_data[i]);
-        vect[i - start].index = QString::number(i);
+    for (int i = 0; i < end - start; ++i) {
+        vect[i] = determinator(header[i], pkt_data[i]);
+        vect[i].index = QString::number(i + start);
     }
 }
 
