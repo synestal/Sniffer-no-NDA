@@ -51,7 +51,10 @@ public:
     void setPacketStorage(const std::vector<packet_info> &storage) {
         PacketsStorage = &storage;
     }
-
+    void setStartEnd(int strt) {
+        startRow = strt;
+        endRow = strt;
+    }
     void setDisplayRange(int startIndex, int endIndex) {
         beginResetModel();
         startRow = startIndex;

@@ -26,7 +26,7 @@ public:
         db = std::make_shared<duckdb::DuckDB>("packets.db"); // Файл БД
         con = std::make_shared<duckdb::Connection>(*db);
         ensureTableExists();
-        con->Query("PRAGMA memory_limit='10MB';");
+        con->Query("PRAGMA memory_limit='100MB';");
     }
     ~DuckDBInsertThread() {
         stop();
@@ -48,6 +48,19 @@ public:
         }
         cond_.wakeOne();
         wait();
+    }
+
+    int64_t getMaxId() {
+        try {
+            auto result = con->Query("SELECT MAX(rowid) FROM packets;");
+            if (!result->HasError() && result->RowCount() > 0) {
+                return result->GetValue<int64_t>(0, 0);
+            }
+            return -1;
+        } catch (const std::exception& e) {
+            qWarning() << "Failed to get max id: " << e.what();
+            return -1;
+        }
     }
 
     static constexpr int maxQueueSize = 10000;
@@ -93,6 +106,7 @@ protected:
                         appender.Close();
                     }
                     con->Query("COMMIT;");
+                    emit insertCommited(batch.size());
                 } catch (const std::exception& e) {
                     qWarning() << "Exception in database operation: " << e.what();
                     con->Query("ROLLBACK;");
@@ -104,7 +118,8 @@ protected:
             }
         }
     }
-
+signals:
+        void insertCommited(int);
 private:
     void ensureTableExists() {
         try {

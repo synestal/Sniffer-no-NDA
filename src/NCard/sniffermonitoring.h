@@ -46,9 +46,12 @@ public:
 protected:
     void run() override {
         insertThread->start();
+        count = insertThread->getMaxId();
+        qDebug() << count;
         maintenanceThread->start();
         connect(this, &SnifferMonitoring::packetIsReadyToBeSentToDB,
                 insertThread, &DuckDBInsertThread::addPacket);
+        connect(insertThread, &DuckDBInsertThread::insertCommited, this, [this](int x){count += x;});
         char errbuf[PCAP_ERRBUF_SIZE];
         char *deviceChar = deviceName.toLocal8Bit().data();
 

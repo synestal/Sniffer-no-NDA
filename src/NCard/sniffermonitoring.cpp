@@ -14,7 +14,6 @@ void SnifferMonitoring::packetHandler(u_char *param, const struct pcap_pkthdr *h
     if (!sniffer) { return; }
 
     try {
-        sniffer->count++;
         emit sniffer->packetCapturedUchar(sniffer->count, (sniffer->insertThread)->getConnection());
         //qDebug() << sniffer->count;
         emit sniffer->packetIsReadyToBeSentToDB(*header, QByteArray(reinterpret_cast<const char*>(pkt_data), header->caplen));
