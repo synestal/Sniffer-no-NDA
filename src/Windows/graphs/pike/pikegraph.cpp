@@ -3,6 +3,7 @@
 PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60>, 24>& obj, std::vector<int>& vect, std::vector<const struct pcap_pkthdr*>& hdr, QWidget *parent)
         : QDialog(parent), vault(&obj), packetData(&vect), header(&hdr) {
         ConstructGraph();
+        graph->setGraphData(GraphData);
     }
 
     QVBoxLayout* PikesGraphBackend::GetLayout() {
@@ -11,7 +12,32 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
 
     void PikesGraphBackend::Repaint() {
         addPackets();
-        int tempMax = settingsApply();
+        int tempMax = GraphData->size();
+        int maxValue = 0;
+        GraphData->clear();
+        switch (currentSetting) {
+        case hour:
+            *GraphData = SearchByParams(3600, 59);
+            break;
+        case minute:
+            *GraphData = SearchByParams(60, 59);
+            break;
+        case second:
+            *GraphData = SearchByParams(1, 59);
+            break;
+        case liveH:
+            *GraphData = SearchByParams(3600, 59);
+            break;
+        case liveM:
+            *GraphData = SearchByParams(60, 59);
+            break;
+        case liveS:
+            *GraphData = SearchByParams(1, 59);
+            break;
+        }
+        for (auto i : *GraphData) {
+            maxValue = maxValue < i.second ? i.second : maxValue;
+        }
         graph->setMaxObjects(tempMax, maxValue, prevMaxSize);
         graph->Repaint();
     }
@@ -172,6 +198,49 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
 
     int PikesGraphBackend::getPacketsInSecond(int hh, int mm, int ss) {
         return (*vault)[hh][mm][ss];
+    }
+
+    std::vector<std::pair<std::string, int>> PikesGraphBackend::SearchByParams(int delitel, int offset ) {
+        if (!connection) {
+            qDebug() << "Connection is null in roundGraph";
+            return std::vector<std::pair<std::string, int>>{};
+        }
+        if (delitel < 0 || offset < 0) {
+            qDebug() << "Invalid info to search by params";
+            return std::vector<std::pair<std::string, int>>{};
+        }
+        try {
+            std::string query = "WITH extracted AS (SELECT CAST(ts / " +   std::to_string(delitel) + " AS INTEGER) AS minute_ts FROM packets), " +
+                  "latest AS (SELECT MAX(minute_ts) AS latest_minute FROM extracted) " +
+                  "SELECT minute_ts, STRFTIME(TO_TIMESTAMP(minute_ts * " + std::to_string(delitel) + "), '%Y-%m-%d %H:%M') AS minute_str, " +
+                  "COUNT(*) AS packet_count FROM extracted, latest " +
+                  "WHERE minute_ts BETWEEN latest_minute - " + std::to_string(offset) + " AND latest_minute " +
+                  "GROUP BY minute_ts ORDER BY minute_ts;";
+            auto result = connection->Query(query);
+            if (!result || result->HasError()) {
+                qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
+                return std::vector<std::pair<std::string, int>>{};
+            }
+            size_t row_count = result->RowCount();
+            if (row_count == 0) {
+                qDebug() << "No data returned from query";
+                return std::vector<std::pair<std::string, int>>{};
+            }
+            std::vector<std::pair<std::string, int>> returningVal;
+            try {
+                for (int i = 0; i < row_count; i++) {
+                    std::string str = result->GetValue(1, i).GetValue<std::string>();
+                    int cnt = result->GetValue<int64_t>(2, i);
+                    returningVal.push_back(std::pair<std::string, int>(str, cnt));
+                }
+            } catch (const std::exception& e) {
+                qDebug() << "Error processing row:" << e.what();
+            }
+            return returningVal;
+        } catch (const std::exception& e) {
+            qDebug() << "DuckDB error: " << e.what();
+            return std::vector<std::pair<std::string, int>>{};
+        }
     }
 
 

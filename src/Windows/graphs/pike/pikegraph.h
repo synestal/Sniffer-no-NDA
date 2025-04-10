@@ -9,12 +9,16 @@
 #include <QtCharts/QChart>
 #include <QDialog>
 #include <QPushButton>
+#include <QCategoryAxis>
+#include <QToolTip>
+
 
 
 #include <ctime>
 #include <unordered_map>
 
 #include "src/NCard/functionstodeterminepacket.h"
+#include "duckdb.hpp"
 
 class PikesGraph : public QDialog {
     Q_OBJECT
@@ -33,30 +37,25 @@ public:
         if((this->prevMaxSize != prevMaxSize && this->prevMaxSize == 0) || prevMaxSize == 0) {series->clear();}
         this->prevMaxSize = prevMaxSize;
     }
+    void setGraphData(std::vector<std::pair<std::string, int>>* dta) {
+        GraphData = dta;
+    }
 
 public slots:
     void Repaint() {
         axisX->setRange(0, maxSize);
         axisY->setRange(0, maxValue);
-        if (!series->points().isEmpty()) { // Изменяем значение последней точки
-            QPointF lastPoint = series->at(series->count() - 1);
-            if (lastPoint.x() + 1 == packetData->size()) {
-                series->replace(lastPoint, QPointF(lastPoint.x(), (*packetData)[lastPoint.x()]));
-            } else {
-                for (int i = lastPoint.x(); i < packetData->size(); ++i) {
-                    series->append(i, (*packetData)[i]);
-                }
-            }
-            return;
-        }
-        for (int i = 0; i < packetData->size(); ++i) { // Наполняем модель точками
-            series->append(i, (*packetData)[i]);
+        int index = 0;
+        for (auto i : *GraphData) {
+            series->append(index, i.second);
+            axisX->append(QString::fromStdString(i.first), index);
+            ++index;
         }
     }
 private:
     void ConstructGraph() {
         chart = new QChart;
-        axisX = new QValueAxis();
+        axisX = new QCategoryAxis();
         axisY = new QValueAxis();
         chartView = new QChartView(chart);
         series = new QLineSeries();
@@ -70,6 +69,18 @@ private:
         chart->addAxis(axisY, Qt::AlignLeft);
         series->attachAxis(axisY);
         chartView->setRenderHint(QPainter::Antialiasing);
+        connect(series, &QLineSeries::hovered, this, [=](const QPointF &point, bool state) {
+            if (state) {
+                QString text = QString("X: %1\nY: %2")
+                                    .arg(point.x(), 0, 'f', 2)
+                                    .arg(point.y(), 0, 'f', 2);
+                QToolTip::showText(QCursor::pos(), text);
+            } else {
+                QToolTip::hideText();
+            }
+        });
+        chartView->setRubberBand(QChartView::RectangleRubberBand);
+        chartView->setDragMode(QGraphicsView::ScrollHandDrag);
     }
 
     int maxSize = 0;
@@ -79,10 +90,12 @@ private:
 
     QChartView *chartView = nullptr;
     QChart* chart = nullptr;
-    QValueAxis *axisX = nullptr;
+    QCategoryAxis *axisX = nullptr;
     QValueAxis *axisY = nullptr;
     QLineSeries* series = nullptr;
     std::vector<int>* packetData = nullptr;
+
+    std::vector<std::pair<std::string, int>>* GraphData = nullptr;
 };
 
 
@@ -93,11 +106,16 @@ public:
     PikesGraphBackend(std::array<std::array<std::array<int,60>,60>, 24>& obj, std::vector<int>& vect, std::vector<const struct pcap_pkthdr*>& hdr, QWidget *parent = nullptr);
 
     QVBoxLayout* GetLayout();
+    void setConnection(std::shared_ptr<duckdb::Connection> conn) {
+        connection = conn;
+    }
 
 public slots:
     void Repaint();
 private:
     void ConstructGraph();
+
+    std::vector<std::pair<std::string, int>> SearchByParams(int, int);
 
     void setGraphMode(int mode);
     int settingsApply();
@@ -123,6 +141,10 @@ private:
 
     enum Settings {hour, minute, second, liveH, liveM, liveS};
     Settings currentSetting = second;
+
+    std::vector<std::pair<std::string, int>>* GraphData = new std::vector<std::pair<std::string, int>>;
+
+    std::shared_ptr<duckdb::Connection> connection = nullptr;
 
 };
 

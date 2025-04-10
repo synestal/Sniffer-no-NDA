@@ -52,8 +52,6 @@ packet_info functionsToDeterminePacket::determinator(const struct pcap_pkthdr *h
     // Причину не показывает
     const u_short sport = ntohs( uh->sport );
     const u_short dport = ntohs( uh->dport );
-
-
     const time_t local_tv_sec = header->ts.tv_sec;
     localtime_s(&ltime, &local_tv_sec);
     strftime( timestr, sizeof timestr, "%H:%M:%S", &ltime);

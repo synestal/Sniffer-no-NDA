@@ -48,9 +48,45 @@ QChartView* RoundGraph::GetChart() {
 /*
  * CLASS RoundGraphBackend
 */
-RoundGraphBackend::RoundGraphBackend(std::unordered_map<QString, int>& obj, std::vector<const struct pcap_pkthdr*>& hdr, std::vector<const uchar*>& dta, QWidget *parent)
-        : QDialog(parent), ObjectsCount(&obj), header(&hdr), pkt_data(&dta) {
+RoundGraphBackend::RoundGraphBackend(std::unordered_map<QString, int>& obj, QWidget *parent)
+        : QDialog(parent), ObjectsCount(&obj) {
         ConstructGraph();
+}
+
+int RoundGraphBackend::SearchByParams(int start, int howMany, const std::string toFind ) {
+    if (!connection) {
+        qDebug() << "Connection is null in roundGraph";
+        return false;
+    }
+    if (start < 0 || howMany < 0) {
+        qDebug() << "Invalid info to search by params";
+        return false;
+    }
+    try {
+        std::string query = "SELECT COUNT(*) FROM packets "
+                            "WHERE SUBSTR(HEX(data), " + std::to_string(start) + "," + std::to_string(howMany) + ") = '" +
+                            toFind + "';";
+        auto result = connection->Query(query);
+        if (!result || result->HasError()) {
+            qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
+            return false;
+        }
+        size_t row_count = result->RowCount();
+        if (row_count == 0) {
+            qDebug() << "No data returned from query";
+            return false;
+        }
+        int returningVal = 0;
+        try {
+            returningVal = result->GetValue<int64_t>(0, 0);
+        } catch (const std::exception& e) {
+            qDebug() << "Error processing row:" << e.what();
+        }
+        return returningVal;
+    } catch (const std::exception& e) {
+        qDebug() << "DuckDB error: " << e.what();
+        return -1;
+    }
 }
 
 void RoundGraphBackend::ConstructGraph() {
@@ -60,16 +96,11 @@ void RoundGraphBackend::ConstructGraph() {
 }
 
 void RoundGraphBackend::Repaint() {
-    functionsToDeterminePacket* determinator = new functionsToDeterminePacket(*header, *pkt_data);
-    int currSize = header->size();
-    for (int i = graph->maxValCounted; i < currSize; i++) {
-        QString temp = "";
-        determinator->determinatingPacketType(temp, (*pkt_data)[i]);
-        (*ObjectsCount)[temp]++;
+    ObjectsCount->clear();
+    for (const auto& pair : ethset) {
+        ObjectsCount->insert(std::pair<QString, int>(QString::fromStdString(pair.second), SearchByParams(25,4,pair.first)));
     }
-    graph->maxValCounted = currSize;
     graph->Repaint();
-    delete determinator;
 }
 
 QVBoxLayout* RoundGraphBackend::GetLayout() {

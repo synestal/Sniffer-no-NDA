@@ -241,6 +241,7 @@ void MainWindow::AnalysisButtonClicked() {
     }
     graph = std::make_unique<GraphChoosing>(this, header, pkt_data);
     qDebug() << "Out of constructor";
+    graph->setConnection(connection);
     connect(graph.get(), &GraphChoosing::closeRequested, this, [=]() {graph = nullptr;});
     graph->show();
 }

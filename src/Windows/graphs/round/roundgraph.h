@@ -11,6 +11,7 @@
 
 
 #include "src/NCard/functionstodeterminepacket.h"
+#include "duckdb.hpp"
 #include <unordered_map>
 
 class RoundGraph : public QDialog {
@@ -19,7 +20,6 @@ public:
     RoundGraph(std::unordered_map<QString, int>& obj, QWidget *parent = nullptr);
     QChartView* GetChart();
     void Repaint();
-    int maxValCounted = 0; //Сколько пакетов было посчитано
 private:
     void ConstructGraph();
 
@@ -33,10 +33,14 @@ private:
 class RoundGraphBackend : public QDialog {
     Q_OBJECT
 public:
-    RoundGraphBackend(std::unordered_map<QString, int>& obj, std::vector<const struct pcap_pkthdr*>& hdr, std::vector<const uchar*>& dta, QWidget *parent = nullptr);
+    RoundGraphBackend(std::unordered_map<QString, int>& obj, QWidget *parent = nullptr);
 
     QVBoxLayout* GetLayout();
     void Repaint();
+    void setConnection(std::shared_ptr<duckdb::Connection> conn) {
+        connection = conn;
+    }
+    int SearchByParams(int, int, const std::string );
 private:
     void ConstructGraph();
 
@@ -46,8 +50,31 @@ private:
     QChart* chart = nullptr;
     QPieSeries* series = nullptr;
     std::unordered_map<QString, int>* ObjectsCount = nullptr;
-    std::vector<const struct pcap_pkthdr*>* header = nullptr;
-    std::vector<const uchar*>* pkt_data;
+    std::shared_ptr<duckdb::Connection> connection = nullptr;
+
+    std::unordered_map<std::string, std::string> ethset = {
+        {"0800", "IPv4"},
+        {"86DD", "IPv6"},
+        {"0806", "ARP"},
+        {"8035", "RARP"},
+        {"8137", "IPX"},
+        {"8847", "MPLS Unicast"},
+        {"8848", "MPLS Multicast"},
+        {"8863", "PPPoE Discovery"},
+        {"8864", "PPPoE Session"}
+    };
+
+    std::unordered_map<std::string, std::string> ethmapv6 = {
+        {"0800", "IPv6 - TCP"},
+        {"86DD", "IPv6 - UDP"},
+        {"0806", "IPv6 - ICMPv6"}
+    };
+    std::unordered_map<std::string, std::string> ethmapv4 = {
+        {"0800", "IPv4 - TCP"},
+        {"86DD", "IPv4 - UDP"},
+        {"0806", "IPv4 - ICMP"},
+        {"8035", "IPv4 - IGMP"}
+    };
 };
 
 

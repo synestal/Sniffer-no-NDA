@@ -48,7 +48,7 @@ void GraphBackend::closeEvent(QCloseEvent *event) {
 
 void GraphBackend::createCircleDiagram() {
     std::unordered_map<QString, int>* ObjectsCircle = new std::unordered_map<QString, int>;
-    RoundGraphBackend* graph = new RoundGraphBackend(*ObjectsCircle, *header, *pkt_data);
+    RoundGraphBackend* graph = new RoundGraphBackend(*ObjectsCircle);
     diagrams.push_back(graph);
     diagramsStorage.push_back(ObjectsCircle);
     layout->insertLayout(0, graph->GetLayout());
