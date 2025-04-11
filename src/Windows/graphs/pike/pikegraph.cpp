@@ -100,7 +100,6 @@ PikesGraphBackend::PikesGraphBackend(QWidget *parent)
     }
 
     std::vector<std::pair<std::string, int>> PikesGraphBackend::SearchByParams(int delitel, int offset ) {
-        qDebug() << "here";
         if (!connection) {
             qDebug() << "Connection is null in roundGraph";
             return std::vector<std::pair<std::string, int>>{};

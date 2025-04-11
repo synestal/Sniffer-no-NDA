@@ -39,6 +39,9 @@ void RoundGraph::Repaint() {
     chartView->repaint();
 }
 
+QChart* RoundGraphBackend::GetCh() {
+    return chart;
+}
 QChartView* RoundGraph::GetChart() {
     return chartView;
 }
@@ -53,6 +56,10 @@ RoundGraphBackend::RoundGraphBackend(std::unordered_map<QString, int>& obj, QWid
         ConstructGraph();
 }
 
+QChartView* RoundGraphBackend::GetChartView() {
+    return graph->GetChart();
+}
+
 int RoundGraphBackend::SearchByParams(int start, int howMany, const QString toFind ) {
     if (!connection) {
         qDebug() << "Connection is null in roundGraph";
@@ -63,11 +70,10 @@ int RoundGraphBackend::SearchByParams(int start, int howMany, const QString toFi
         return false;
     }
     try {
-        qDebug() << toFind;
         QString query = QString("SELECT COUNT(*) FROM packets "
                                 "WHERE (packet_type = '%1');")
                             .arg(toFind);
-        qDebug() << query;
+        //qDebug() << query;
         auto result = connection->Query(query.toUtf8().constData());
         if (!result || result->HasError()) {
             qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
@@ -100,11 +106,9 @@ void RoundGraphBackend::ConstructGraph() {
 
 void RoundGraphBackend::Repaint() {
     ObjectsCount->clear();
-    qDebug() << "here0";
     for (const auto& pair : ethset) {
         ObjectsCount->insert(std::pair<QString, int>(pair.second, SearchByParams(13,1,pair.first)));
     }
-    qDebug() << "here3";
     graph->Repaint();
 }
 

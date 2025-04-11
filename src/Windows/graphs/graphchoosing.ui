@@ -1,78 +1,217 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>GraphChoosing</class>
- <widget class="QDialog" name="GraphChoosing">
-  <property name="geometry">
-   <rect>
-    <x>0</x>
-    <y>0</y>
-    <width>902</width>
-    <height>693</height>
-   </rect>
-  </property>
-  <property name="windowTitle">
-   <string>Dialog</string>
-  </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
-    <layout class="QVBoxLayout" name="MainLayout">
-     <item>
-      <spacer name="verticalSpacer">
-       <property name="orientation">
-        <enum>Qt::Vertical</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>20</width>
-         <height>40</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-    </layout>
-   </item>
-   <item row="1" column="0">
-    <layout class="QHBoxLayout" name="horizontalLayout">
-     <item>
+  <class>GraphChoosing</class>
+  <widget class="QDialog" name="GraphChoosing">
+    <property name="geometry">
+      <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1800</width>
+        <height>522</height>
+      </rect>
+    </property>
+    <property name="windowTitle">
+      <string>График Приложение</string>
+    </property>
+    <widget class="QWidget" name="centralwidget">
+      <property name="geometry">
+        <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>1200</width>
+          <height>630</height>
+        </rect>
+      </property>
       <layout class="QVBoxLayout" name="verticalLayout">
-       <item>
-        <widget class="QPushButton" name="RoundButton">
-         <property name="text">
-          <string>Круговая</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="PikeButton">
-         <property name="text">
-          <string>Пиковая</string>
-         </property>
-        </widget>
-       </item>
+        <item>
+          <widget class="QPushButton" name="addChartButton">
+            <property name="text">
+              <string>Добавить график</string>
+            </property>
+          </widget>
+        </item>
+        <item>
+          <widget class="QScrollArea" name="scrollArea">
+            <property name="widgetResizable">
+              <bool>true</bool>
+            </property>
+            <widget class="QWidget" name="scrollAreaWidgetContents">
+              <property name="geometry">
+                <rect>
+                  <x>0</x>
+                  <y>0</y>
+                  <width>1200</width>
+                  <height>520</height>
+                </rect>
+              </property>
+              <layout class="QVBoxLayout" name="scrollLayout">
+                <item>
+                  <widget class="QWidget" name="chartsContainer" native="true">
+                    <layout class="QVBoxLayout" name="chartsLayout">
+                      <item>
+                        <widget class="QWidget" name="chartWidget1" native="true">
+                          <property name="minimumSize">
+                            <size>
+                              <width>0</width>
+                              <height>400</height>
+                            </size>
+                          </property>
+                          <property name="maximumSize">
+                            <size>
+                              <width>16777215</width>
+                              <height>400</height>
+                            </size>
+                          </property>
+                          <layout class="QHBoxLayout" name="horizontalLayout_1">
+                            <item>
+                              <widget class="QChartView" name="chartView1">
+                                <property name="minimumSize">
+                                  <size>
+                                    <width>800</width>
+                                    <height>360</height>
+                                  </size>
+                                </property>
+                              </widget>
+                            </item>
+                            <item>
+                              <widget class="QWidget" name="settingsWidget1" native="true">
+                                <layout class="QVBoxLayout" name="settingsLayout1">
+                                  <item>
+                                    <widget class="QLabel" name="settingsLabel1">
+                                      <property name="text">
+                                        <string>Настройки графика</string>
+                                      </property>
+                                    </widget>
+                                  </item>
+                                  <item>
+                                    <widget class="QComboBox" name="typeComboBox1"/>
+                                  </item>
+                                  <item>
+                                    <widget class="QCheckBox" name="gridCheckBox1">
+                                      <property name="text">
+                                        <string>Показать сетку</string>
+                                      </property>
+                                    </widget>
+                                  </item>
+                                  <item>
+                                    <widget class="QPushButton" name="colorButton1">
+                                      <property name="text">
+                                        <string>Цвет линии</string>
+                                      </property>
+                                    </widget>
+                                  </item>
+                                  <item>
+                                    <spacer name="verticalSpacer1">
+                                      <property name="orientation">
+                                        <enum>Qt::Vertical</enum>
+                                      </property>
+                                      <property name="sizeHint" stdset="0">
+                                        <size>
+                                          <width>20</width>
+                                          <height>40</height>
+                                        </size>
+                                      </property>
+                                    </spacer>
+                                  </item>
+                                </layout>
+                              </widget>
+                            </item>
+                          </layout>
+                        </widget>
+                      </item>
+                      <!-- Add more charts here -->
+                    </layout>
+                  </widget>
+                </item>
+                <item>
+                  <spacer name="verticalSpacer">
+                    <property name="orientation">
+                      <enum>Qt::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                      <size>
+                        <width>20</width>
+                        <height>40</height>
+                      </size>
+                    </property>
+                  </spacer>
+                </item>
+              </layout>
+            </widget>
+          </widget>
+        </item>
       </layout>
-     </item>
-     <item>
-      <layout class="QVBoxLayout" name="verticalLayout_2">
-       <item>
-        <widget class="QPushButton" name="pushButton_3">
-         <property name="text">
-          <string>Еще какая-то</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pushButton">
-         <property name="text">
-          <string>Еще какая-то</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-    </layout>
-   </item>
-  </layout>
+    </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>Файл</string>
+    </property>
+    <widget class="QMenu" name="menuCreate">
+     <property name="title">
+      <string>Создать</string>
+     </property>
+     <addaction name="actionCreateLineChart"/>
+     <addaction name="actionCreateBarChart"/>
+     <addaction name="actionCreatePieChart"/>
+     <addaction name="actionCreateScatterChart"/>
+    </widget>
+    <addaction name="menuCreate"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
+   </widget>
+   <addaction name="menuFile"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>3</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+  <action name="actionCreateLineChart">
+   <property name="text">
+    <string>Линейный график</string>
+   </property>
+  </action>
+  <action name="actionCreateBarChart">
+   <property name="text">
+    <string>Столбчатый график</string>
+   </property>
+  </action>
+  <action name="actionCreatePieChart">
+   <property name="text">
+    <string>Круговая диаграмма</string>
+   </property>
+  </action>
+  <action name="actionCreateScatterChart">
+   <property name="text">
+    <string>Точечный график</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Выход</string>
+   </property>
+  </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QChartView</class>
+   <extends>QGraphicsView</extends>
+   <header>QtCharts</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

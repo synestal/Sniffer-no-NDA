@@ -108,6 +108,9 @@ public:
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
         connection = conn;
     }
+    QChartView* GetChartView() {
+        return graph->GetChart();
+    }
 
 public slots:
     void Repaint();

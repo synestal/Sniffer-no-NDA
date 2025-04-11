@@ -36,11 +36,13 @@ public:
     RoundGraphBackend(std::unordered_map<QString, int>& obj, QWidget *parent = nullptr);
 
     QVBoxLayout* GetLayout();
+    QChart* GetCh();
     void Repaint();
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
         connection = conn;
     }
     int SearchByParams(int, int, const QString );
+    QChartView* GetChartView();
 private:
     void ConstructGraph();
 

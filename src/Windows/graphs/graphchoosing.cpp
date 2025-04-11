@@ -18,9 +18,8 @@
 
 GraphChoosing::GraphChoosing(QWidget *parent, std::vector<const struct pcap_pkthdr*>& hdr, std::vector<const uchar*>& dta) : QDialog(parent), header(&hdr), pkt_data(&dta), ui(new Ui::GraphChoosing) {
     ui->setupUi(this);
-    qDebug() << ui->RoundButton;
-    connect(ui->RoundButton, &QPushButton::clicked, this, &GraphChoosing::createCircleDiagram);
-    connect(ui->PikeButton, &QPushButton::clicked, this, &GraphChoosing::createPikeDiagram);
+    connect(ui->actionCreatePieChart, &QAction::triggered, this, &GraphChoosing::createCircleDiagram);
+    connect(ui->actionCreateLineChart, &QAction::triggered, this, &GraphChoosing::createPikeDiagram);
     resize(1920, 1080);
 
     updateTimer = new QTimer(this);
@@ -39,19 +38,32 @@ void GraphChoosing::closeEvent(QCloseEvent *event) {
 }
 
 void GraphChoosing::createCircleDiagram() {
+    auto* chartContainer = new QWidget();
+    chartContainer->setMinimumHeight(400);
+    chartContainer->setMaximumHeight(400);
+    auto* layout = new QHBoxLayout(chartContainer);
     std::unordered_map<QString, int>* ObjectsCircle = new std::unordered_map<QString, int>;
     RoundGraphBackend* graph = new RoundGraphBackend(*ObjectsCircle);
     graph->setConnection(connection);
     diagrams.push_back(graph);
     diagramsStorage.push_back(ObjectsCircle);
-    ui->MainLayout->insertLayout(0, graph->GetLayout());
+    graph->Repaint();
+    layout->addWidget(graph->GetChartView());
+    ui->chartsLayout->addWidget(chartContainer);
 }
 
 void GraphChoosing::createPikeDiagram() {
+    auto* chartContainer = new QWidget();
+    chartContainer->setMinimumHeight(400);
+    chartContainer->setMaximumHeight(400);
+    auto* layout = new QHBoxLayout(chartContainer);
     PikesGraphBackend* pike = new PikesGraphBackend();
     pike->setConnection(connection);
     diagrams.push_back(pike);
-    ui->MainLayout->insertLayout(0, pike->GetLayout());
+    pike->Repaint();
+    layout->addWidget(pike->GetChartView());
+    ui->chartsLayout->addWidget(chartContainer);
+    //ui->MainLayout->insertLayout(0, pike->GetLayout());
 }
 
 
