@@ -87,17 +87,50 @@ protected:
                 count++;
             }
             locker.unlock();
-
             if (!batch.empty()) {
                 try {
                     con->Query("BEGIN TRANSACTION;");
                     {
                         duckdb::Appender appender(*con, "packets");
                         for (auto &[header, pkt_data] : batch) {
+                            // Извлекаем тип пакета (13-й и 14-й байты)
+                            QByteArray packetType;
+
+                            if (pkt_data.size() > 13) {
+                                uint8_t eth_type_1 = static_cast<uint8_t>(pkt_data[12]);
+                                uint8_t eth_type_2 = static_cast<uint8_t>(pkt_data[13]);
+
+                                // Добавляем этернет тип
+                                packetType.append(static_cast<char>(eth_type_1));
+                                packetType.append(static_cast<char>(eth_type_2));
+
+                                // Проверяем на IPv4
+                                if (eth_type_1 == 0x08 && eth_type_2 == 0x00 && pkt_data.size() > 23) {
+                                    // Добавляем тип протокола IPv4 (24-й байт)
+                                    packetType.append(pkt_data[23]);
+                                }
+                                // Проверяем на IPv6
+                                else if (eth_type_1 == 0x86 && eth_type_2 == 0xDD && pkt_data.size() > 20) {
+                                    // Добавляем тип протокола IPv6 (21-й байт)
+                                    packetType.append(pkt_data[20]);
+                                }
+                            } else if (pkt_data.size() > 12) {
+                                // Если есть только 13-й байт
+                                packetType.append(pkt_data[12]);
+                                packetType.append(static_cast<char>(0));
+                            } else {
+                                // Если пакет слишком короткий
+                                packetType.append(static_cast<char>(0));
+                                packetType.append(static_cast<char>(0));
+                            }
+
                             appender.BeginRow();
                             appender.Append<int64_t>(header.ts.tv_sec);
                             appender.Append<uint16_t>(header.caplen);
                             appender.Append<uint16_t>(header.len);
+                            // Добавляем тип пакета как BLOB
+                            appender.Append(duckdb::Value::BLOB(
+                                reinterpret_cast<duckdb::const_data_ptr_t>(packetType.constData()), packetType.size()));
                             appender.Append(duckdb::Value::BLOB(
                                 reinterpret_cast<duckdb::const_data_ptr_t>(pkt_data.constData()), pkt_data.size()));
                             appender.EndRow();
@@ -112,7 +145,6 @@ protected:
                     con->Query("ROLLBACK;");
                 }
             }
-
             if (count < batchSize) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(waitTimeMs));
             }
@@ -129,6 +161,7 @@ private:
                 "ts INTEGER, "
                 "caplen SMALLINT, "
                 "len SMALLINT, "
+                "packet_type BLOB, "
                 "data BLOB"
                 ") WITH (compression='zlib');"
             );

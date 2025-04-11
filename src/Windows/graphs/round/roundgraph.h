@@ -40,7 +40,7 @@ public:
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
         connection = conn;
     }
-    int SearchByParams(int, int, const std::string );
+    int SearchByParams(int, int, const QString );
 private:
     void ConstructGraph();
 
@@ -51,29 +51,31 @@ private:
     QPieSeries* series = nullptr;
     std::unordered_map<QString, int>* ObjectsCount = nullptr;
     std::shared_ptr<duckdb::Connection> connection = nullptr;
-
-    std::unordered_map<std::string, std::string> ethset = {
-        {"0800", "IPv4"},
-        {"86DD", "IPv6"},
-        {"0806", "ARP"},
-        {"8035", "RARP"},
-        {"8137", "IPX"},
-        {"8847", "MPLS Unicast"},
-        {"8848", "MPLS Multicast"},
-        {"8863", "PPPoE Discovery"},
-        {"8864", "PPPoE Session"}
-    };
-
-    std::unordered_map<std::string, std::string> ethmapv6 = {
-        {"0800", "IPv6 - TCP"},
-        {"86DD", "IPv6 - UDP"},
-        {"0806", "IPv6 - ICMPv6"}
-    };
-    std::unordered_map<std::string, std::string> ethmapv4 = {
-        {"0800", "IPv4 - TCP"},
-        {"86DD", "IPv4 - UDP"},
-        {"0806", "IPv4 - ICMP"},
-        {"8035", "IPv4 - IGMP"}
+    std::unordered_map<QString, QString> ethset = {
+        {"\\x08\\x00\\x06", "IPv4 - TCP"},   // EtherType 0x0800 + Protocol 0x06
+        {"\\x08\\x00\\x11", "IPv4 - UDP"},   // EtherType 0x0800 + Protocol 0x11
+        {"\\x08\\x00\\x01", "IPv4 - ICMP"},  // EtherType 0x0800 + Protocol 0x01
+        {"\\x08\\x00\\x02", "IPv4 - IGMP"},  // EtherType 0x0800 + Protocol 0x02
+        {"\\x86\\xDD\\x06", "IPv6 - TCP"},   // EtherType 0x86DD + Next Header 0x06
+        {"\\x86\\xDD\\x11", "IPv6 - UDP"},   // EtherType 0x86DD + Next Header 0x11
+        {"\\x86\\xDD\\x3A", "IPv6 - ICMPv6"},// EtherType 0x86DD + Next Header 0x3A
+        {"\\x08\\x06", "ARP"}, // Address Resolution Protocol
+        {"\\x80\\x35", "RARP"}, // Reverse Address Resolution Protocol
+        {"\\x81\\x37", "IPX"}, // Internetwork Packet Exchange
+        {"\\x88\\x47", "MPLS Unicast"}, // MPLS Unicast
+        {"\\x88\\x48", "MPLS Multicast"}, // MPLS Multicast
+        {"\\x88\\x63", "PPPoE Discovery"}, // PPP over Ethernet Discovery
+        {"\\x88\\x64", "PPPoE Session"}, // PPP over Ethernet Session
+        {"\\x80\\x00", "SNAP"}, // Subnetwork Access Protocol
+        {"\\x81\\x00", "VLAN 802.1Q"}, // Virtual LAN tagging
+        {"\\x88\\xA8", "QinQ (802.1ad)"}, // Double VLAN tagging
+        {"\\x88\\x8E", "EAPOL"}, // Extensible Authentication Protocol over LAN
+        {"\\x88\\xCC", "LLDP"}, // Link Layer Discovery Protocol
+        {"\\x89\\x02", "Ethernet OAM"}, // Operations, Administration, and Maintenance
+        {"\\x88\\x09", "LACP"}, // Link Aggregation Control Protocol
+        {"\\x88\\xF7", "PTP"}, // Precision Time Protocol
+        {"\\x88\\x0B", "PPP"}, // Point-to-Point Protocol
+        {"\\x88\\xE5", "MACsec"} // Media Access Control Security
     };
 };
 

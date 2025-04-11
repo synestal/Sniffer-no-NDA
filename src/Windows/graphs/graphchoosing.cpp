@@ -48,11 +48,7 @@ void GraphChoosing::createCircleDiagram() {
 }
 
 void GraphChoosing::createPikeDiagram() {
-    std::array<std::array<std::array<int,60>,60>, 24>* vault = new std::array<std::array<std::array<int, 60>, 60>, 24>{};
-    std::vector<int>* packetData = new std::vector<int>;
-    diagramsStorage.push_back(new std::pair<std::array<std::array<std::array<int,60>,60>, 24>*, std::vector<int>*>(vault, packetData));
-
-    PikesGraphBackend* pike = new PikesGraphBackend(*vault, *packetData, *header);
+    PikesGraphBackend* pike = new PikesGraphBackend();
     pike->setConnection(connection);
     diagrams.push_back(pike);
     ui->MainLayout->insertLayout(0, pike->GetLayout());
@@ -65,11 +61,8 @@ void GraphChoosing::setSrc(std::vector<const struct pcap_pkthdr*>& inputHdr, std
 }
 
 void GraphChoosing::Repaint() {
-    functionsToDeterminePacket* determinator = new functionsToDeterminePacket(*header, *pkt_data);
-
     auto diagramIt = diagrams.begin();
-    auto storageIt = diagramsStorage.begin();
-    for (; diagramIt != diagrams.end() && storageIt != diagramsStorage.end(); ++diagramIt, ++storageIt) {
+    for (; diagramIt != diagrams.end(); ++diagramIt) {
         if (std::holds_alternative<RoundGraphBackend*>(*diagramIt)) {
             RoundGraphBackend* roundGraph = std::get<RoundGraphBackend*>(*diagramIt);
             roundGraph->Repaint();
@@ -78,7 +71,6 @@ void GraphChoosing::Repaint() {
             pikesGraph->Repaint();
         }
     }
-    delete determinator;
 }
 
 
@@ -94,8 +86,6 @@ void GraphChoosing::Cleanup() {
     for (auto& storage : diagramsStorage) {
         if (std::holds_alternative<std::unordered_map<QString, int>*>(storage)) {
             delete std::get<std::unordered_map<QString, int>*>(storage);
-        } else if (std::holds_alternative<std::pair<std::array<std::array<std::array<int,60>,60>, 24>*, std::vector<int>*>*>(storage)) {
-            delete std::get<std::pair<std::array<std::array<std::array<int,60>,60>, 24>*, std::vector<int>*>*>(storage);
         }
     }
 }

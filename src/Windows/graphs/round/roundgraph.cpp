@@ -53,7 +53,7 @@ RoundGraphBackend::RoundGraphBackend(std::unordered_map<QString, int>& obj, QWid
         ConstructGraph();
 }
 
-int RoundGraphBackend::SearchByParams(int start, int howMany, const std::string toFind ) {
+int RoundGraphBackend::SearchByParams(int start, int howMany, const QString toFind ) {
     if (!connection) {
         qDebug() << "Connection is null in roundGraph";
         return false;
@@ -63,10 +63,12 @@ int RoundGraphBackend::SearchByParams(int start, int howMany, const std::string 
         return false;
     }
     try {
-        std::string query = "SELECT COUNT(*) FROM packets "
-                            "WHERE SUBSTR(HEX(data), " + std::to_string(start) + "," + std::to_string(howMany) + ") = '" +
-                            toFind + "';";
-        auto result = connection->Query(query);
+        qDebug() << toFind;
+        QString query = QString("SELECT COUNT(*) FROM packets "
+                                "WHERE (packet_type = '%1');")
+                            .arg(toFind);
+        qDebug() << query;
+        auto result = connection->Query(query.toUtf8().constData());
         if (!result || result->HasError()) {
             qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
             return false;
@@ -92,14 +94,17 @@ int RoundGraphBackend::SearchByParams(int start, int howMany, const std::string 
 void RoundGraphBackend::ConstructGraph() {
     layout = new QVBoxLayout;
     graph = new RoundGraph(*ObjectsCount);
+    Repaint();
     layout->addWidget(graph->GetChart());
 }
 
 void RoundGraphBackend::Repaint() {
     ObjectsCount->clear();
+    qDebug() << "here0";
     for (const auto& pair : ethset) {
-        ObjectsCount->insert(std::pair<QString, int>(QString::fromStdString(pair.second), SearchByParams(25,4,pair.first)));
+        ObjectsCount->insert(std::pair<QString, int>(pair.second, SearchByParams(13,1,pair.first)));
     }
+    qDebug() << "here3";
     graph->Repaint();
 }
 

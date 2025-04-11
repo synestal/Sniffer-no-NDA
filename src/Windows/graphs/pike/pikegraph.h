@@ -23,7 +23,7 @@
 class PikesGraph : public QDialog {
     Q_OBJECT
 public:
-    explicit PikesGraph(std::vector<int>& vect, QWidget *parent = nullptr) : QDialog(parent), packetData(&vect) {
+    explicit PikesGraph(QWidget *parent = nullptr) : QDialog(parent) {
         ConstructGraph();
     }
 
@@ -86,14 +86,13 @@ private:
     int maxSize = 0;
     int maxValue = 0;
 
-    int prevMaxSize = 0;
+    int prevMaxSize = -1;
 
     QChartView *chartView = nullptr;
     QChart* chart = nullptr;
     QCategoryAxis *axisX = nullptr;
     QValueAxis *axisY = nullptr;
     QLineSeries* series = nullptr;
-    std::vector<int>* packetData = nullptr;
 
     std::vector<std::pair<std::string, int>>* GraphData = nullptr;
 };
@@ -103,7 +102,7 @@ private:
 class PikesGraphBackend : public QDialog {
     Q_OBJECT
 public:
-    PikesGraphBackend(std::array<std::array<std::array<int,60>,60>, 24>& obj, std::vector<int>& vect, std::vector<const struct pcap_pkthdr*>& hdr, QWidget *parent = nullptr);
+    PikesGraphBackend(QWidget *parent = nullptr);
 
     QVBoxLayout* GetLayout();
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
@@ -119,19 +118,9 @@ private:
 
     void setGraphMode(int mode);
     int settingsApply();
-    void addPackets();
-
-    int getPacketsInHour(int hh);
-    int getPacketsInMinute(int hh, int mm);
-    int getPacketsInSecond(int hh, int mm, int ss);
 
     QVBoxLayout* layout = nullptr;
     PikesGraph* graph = nullptr;
-
-    std::array<std::array<std::array<int,60>,60>, 24>* vault = nullptr;
-    std::vector<int>* packetData = nullptr;
-
-    std::vector<const struct pcap_pkthdr*>*  header = nullptr;
 
     int timeLive = -1;
     int maxSize = 0;
