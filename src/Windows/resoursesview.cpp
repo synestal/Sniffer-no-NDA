@@ -12,11 +12,6 @@ ResoursesView::ResoursesView(QWidget *parent) :
     updateTimer->start(200);
 }
 
-void ResoursesView::setSrc(std::vector<const struct pcap_pkthdr*>& input, int& inputVal) {
-    header = &input;
-    sizeCurr = &inputVal;
-}
-
 void ResoursesView::UpdateData() {
     QProcess process1;
     #ifdef Q_OS_WIN
@@ -45,12 +40,8 @@ void ResoursesView::UpdateData() {
     } else {
         ui->label_21->setText(output1 + " Кб");
     }
-    size_t header_meta_size = header->capacity() * sizeof(const struct pcap_pkthdr*);
 
-
-    ui->label_23->setText(QString::number(0 / (1024 * 1024)) + " Мб"); // Заменить 0 на val1
-    ui->label_24->setText(QString::number((*sizeCurr + header_meta_size) / (1024 * 1024)) + " Мб");
-    ui->label_25->setText(QString::number((0 + *sizeCurr + header_meta_size) / (1024 * 1024)) + " Мб");
+    ui->label_25->setText(QString::number((0 + output1Int * 1024 + 0) / (1024 * 1024)) + " Мб");
 }
 
 

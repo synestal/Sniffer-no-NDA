@@ -21,6 +21,7 @@
 #include "src/NCard/functionstodeterminepacket.h"
 #include "src/Windows/graphs/pike/pikegraph.h"
 #include "src/Windows/graphs/round/roundgraph.h"
+#include "duckdb.hpp"
 
 
 
@@ -42,6 +43,10 @@ public:
     ~GraphChoosing() { Cleanup(); }
     void closeEvent(QCloseEvent *event);
 
+    void setConnection(std::shared_ptr<duckdb::Connection> conn) {
+        connection = conn;
+    }
+
 
     void setSrc(std::vector<const struct pcap_pkthdr*>& inputHdr, std::vector<const uchar*>& inputDta);
 public slots:
@@ -57,6 +62,9 @@ private:
 
     std::list<GraphPtr> diagrams;
     std::list<GraphStoragePtr> diagramsStorage;
+
+
+    std::shared_ptr<duckdb::Connection> connection = nullptr;
 
     QTimer *updateTimer = nullptr;
     Ui::GraphChoosing *ui;

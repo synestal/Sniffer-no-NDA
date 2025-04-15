@@ -1,8 +1,9 @@
 #include "src/Windows/graphs/pike/pikegraph.h"
 
-PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60>, 24>& obj, std::vector<int>& vect, std::vector<const struct pcap_pkthdr*>& hdr, QWidget *parent)
-        : QDialog(parent), vault(&obj), packetData(&vect), header(&hdr) {
+PikesGraphBackend::PikesGraphBackend(QWidget *parent)
+        : QDialog(parent) {
         ConstructGraph();
+        graph->setGraphData(GraphData);
     }
 
     QVBoxLayout* PikesGraphBackend::GetLayout() {
@@ -10,8 +11,32 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
     }
 
     void PikesGraphBackend::Repaint() {
-        addPackets();
-        int tempMax = settingsApply();
+        int tempMax = GraphData->size();
+        int maxValue = 0;
+        GraphData->clear();
+        switch (currentSetting) {
+        case hour:
+            *GraphData = SearchByParams(3600, 59);
+            break;
+        case minute:
+            *GraphData = SearchByParams(60, 59);
+            break;
+        case second:
+            *GraphData = SearchByParams(1, 59);
+            break;
+        case liveH:
+            *GraphData = SearchByParams(3600, 59);
+            break;
+        case liveM:
+            *GraphData = SearchByParams(60, 59);
+            break;
+        case liveS:
+            *GraphData = SearchByParams(1, 59);
+            break;
+        }
+        for (auto i : *GraphData) {
+            maxValue = maxValue < i.second ? i.second : maxValue;
+        }
         graph->setMaxObjects(tempMax, maxValue, prevMaxSize);
         graph->Repaint();
     }
@@ -36,8 +61,8 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
         connect(button4, &QPushButton::clicked, this, [this](){setGraphMode(4);});
         connect(button5, &QPushButton::clicked, this, [this](){setGraphMode(5);});
         connect(button6, &QPushButton::clicked, this, [this](){setGraphMode(6);});
-
-        graph = new PikesGraph(*packetData);
+        setGraphMode(3);
+        graph = new PikesGraph();
         layout->addWidget(graph->GetChart());
         layout->addWidget(button1);
         layout->addWidget(button2);
@@ -49,7 +74,6 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
 
 
     void PikesGraphBackend::setGraphMode(int mode) {
-        packetData->resize(0);
         timeLive = -1;
         maxValue = 0;
         prevMaxSize = 0;
@@ -75,103 +99,47 @@ PikesGraphBackend::PikesGraphBackend(std::array<std::array<std::array<int,60>,60
         }
     }
 
-    void PikesGraphBackend::addPackets() {
-        const int max = header->size();
-        for (int i = maxSize; i < max; ++i) {
-            struct tm ltime;
-            const time_t local_tv_sec = (*header)[i]->ts.tv_sec;
-            localtime_s(&ltime, &local_tv_sec);
-            int hh = ltime.tm_hour;
-            int mm = ltime.tm_min;
-            int ss = ltime.tm_sec;
-            ++(*vault)[hh][mm][ss];
+    std::vector<std::pair<std::string, int>> PikesGraphBackend::SearchByParams(int delitel, int offset ) {
+        if (!connection) {
+            qDebug() << "Connection is null in roundGraph";
+            return std::vector<std::pair<std::string, int>>{};
         }
-        maxSize = max;
-    }
-
-
-    int PikesGraphBackend::settingsApply () {
-        const std::time_t t = std::time(nullptr);
-        const std::tm* localTime = std::localtime(&t);
-        int tempMax = 0;
-
-        switch (currentSetting) {
-        case hour: // В сутки
-            tempMax = 24; packetData->resize(0); packetData->reserve(24);
-            for (int i = 0; i < 24; ++i) {
-                packetData->push_back(getPacketsInHour(i));
-                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
-            }
-            break;
-        case minute: // В час
-            tempMax = 60; packetData->resize(0); packetData->reserve(60);
-            for (int i = 0; i < 60; ++i) {
-                packetData->push_back(getPacketsInMinute(localTime->tm_hour,i));
-                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
-            }
-            break;
-        case second: // В минуту
-            tempMax = 60; packetData->resize(0); packetData->reserve(60);
-            for (int i = 0; i < 60; ++i) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min, i));
-                maxValue = (*packetData)[i] > maxValue ? (*packetData)[i] : maxValue;
-            }
-            break;
-        case liveH:
-            if (localTime->tm_hour != timeLive) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
-                timeLive = localTime->tm_hour;
-            } else {
-                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
-            }
-            tempMax = packetData->size();
-            prevMaxSize = tempMax;
-            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
-            break;
-        case liveM:
-            if (localTime->tm_min != timeLive) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
-                timeLive = localTime->tm_min;
-            } else {
-                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
-            }
-            tempMax = packetData->size();
-            prevMaxSize = tempMax;
-            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
-            break;
-        case liveS:
-            if (localTime->tm_sec != timeLive) {
-                packetData->push_back(getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec));
-                timeLive = localTime->tm_sec;
-            } else {
-                packetData->back() = getPacketsInSecond(localTime->tm_hour,localTime->tm_min,localTime->tm_sec);
-            }
-            tempMax = packetData->size();
-            prevMaxSize = tempMax;
-            maxValue = packetData->back() > maxValue ? packetData->back() : maxValue;
-            break;
+        if (delitel < 0 || offset < 0) {
+            qDebug() << "Invalid info to search by params";
+            return std::vector<std::pair<std::string, int>>{};
         }
-        return tempMax;
-    }
-
-    int PikesGraphBackend::getPacketsInHour(int hh) {
-        int temp = 0;
-        for (int i = 0; i < 60; ++i) {
-            temp += getPacketsInMinute(hh, i);
+        try {
+            std::string query = "WITH extracted AS (SELECT CAST(ts / " +   std::to_string(delitel) + " AS INTEGER) AS minute_ts FROM packets), " +
+                  "latest AS (SELECT MAX(minute_ts) AS latest_minute FROM extracted) " +
+                  "SELECT minute_ts, STRFTIME(TO_TIMESTAMP(minute_ts * " + std::to_string(delitel) + "), '%Y-%m-%d %H:%M') AS minute_str, " +
+                  "COUNT(*) AS packet_count FROM extracted, latest " +
+                  "WHERE minute_ts BETWEEN latest_minute - " + std::to_string(offset) + " AND latest_minute " +
+                  "GROUP BY minute_ts ORDER BY minute_ts;";
+            auto result = connection->Query(query);
+            if (!result || result->HasError()) {
+                qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
+                return std::vector<std::pair<std::string, int>>{};
+            }
+            size_t row_count = result->RowCount();
+            if (row_count == 0) {
+                qDebug() << "No data returned from query";
+                return std::vector<std::pair<std::string, int>>{};
+            }
+            std::vector<std::pair<std::string, int>> returningVal;
+            try {
+                for (int i = 0; i < row_count; i++) {
+                    std::string str = result->GetValue(1, i).GetValue<std::string>();
+                    int cnt = result->GetValue<int64_t>(2, i);
+                    returningVal.push_back(std::pair<std::string, int>(str, cnt));
+                }
+            } catch (const std::exception& e) {
+                qDebug() << "Error processing row:" << e.what();
+            }
+            return returningVal;
+        } catch (const std::exception& e) {
+            qDebug() << "DuckDB error: " << e.what();
+            return std::vector<std::pair<std::string, int>>{};
         }
-        return temp;
-    }
-
-    int PikesGraphBackend::getPacketsInMinute(int hh, int mm) {
-        int temp = 0;
-        for (int i = 0; i < 60; ++i) {
-            temp += getPacketsInSecond(hh, mm, i);
-        }
-        return temp;
-    }
-
-    int PikesGraphBackend::getPacketsInSecond(int hh, int mm, int ss) {
-        return (*vault)[hh][mm][ss];
     }
 
 

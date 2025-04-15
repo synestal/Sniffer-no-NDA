@@ -9,9 +9,9 @@
  *
 */
 void functionsToDeterminePacket::mainhandler(std::vector<packet_info>& vect, int start, int end) {
-    for (int i = start; i < end; ++i) {
-        vect[i - start] = determinator(header[i], pkt_data[i]);
-        vect[i - start].index = QString::number(i);
+    for (int i = 0; i < end - start; ++i) {
+        vect[i] = determinator(header[i], pkt_data[i]);
+        vect[i].index = QString::number(i + start);
     }
 }
 
@@ -52,8 +52,6 @@ packet_info functionsToDeterminePacket::determinator(const struct pcap_pkthdr *h
     // Причину не показывает
     const u_short sport = ntohs( uh->sport );
     const u_short dport = ntohs( uh->dport );
-
-
     const time_t local_tv_sec = header->ts.tv_sec;
     localtime_s(&ltime, &local_tv_sec);
     strftime( timestr, sizeof timestr, "%H:%M:%S", &ltime);

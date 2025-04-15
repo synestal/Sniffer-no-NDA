@@ -31,6 +31,7 @@
 #include "src/NCard/functionstodeterminepacket.h"
 #include "src/Windows/graphs/graphy.h"
 #include "src/Windows/resoursesview.h"
+#include "duckdb.hpp"
 
 #include "src/Windows/graphs/graphchoosing.h"
 
@@ -50,7 +51,10 @@ public:
     void setPacketStorage(const std::vector<packet_info> &storage) {
         PacketsStorage = &storage;
     }
-
+    void setStartEnd(int strt) {
+        startRow = strt;
+        endRow = strt;
+    }
     void setDisplayRange(int startIndex, int endIndex) {
         beginResetModel();
         startRow = startIndex;
@@ -167,7 +171,7 @@ public:
     ~MainWindow();
 
 private slots:
-    void handlePacketCapturedUchar(const struct pcap_pkthdr*, const u_char*);
+    void handlePacketCapturedUchar(int num, std::shared_ptr<duckdb::Connection>);
 
     void onRowClicked(const QModelIndex&);
     void AnalysisButtonClicked();
@@ -194,8 +198,6 @@ private:
     QString currentDevice;
 
     // Контейнеры пакетов
-    std::vector<const struct pcap_pkthdr*> header;
-    std::vector<const uchar*> pkt_data;
     int sizeCurr = 0;
     int capCurr = 0;
 
@@ -212,6 +214,12 @@ private:
     // Переопределенные события
     void resizeEvent(QResizeEvent*) override;
     void wheelEvent(QWheelEvent *event) override;
+
+    std::shared_ptr<duckdb::Connection> connection = nullptr;
+
+    std::vector<const struct pcap_pkthdr*> header;
+    std::vector<const uchar*> pkt_data;
+    bool selectPacketInfoFromDB(int, int, std::vector<const struct pcap_pkthdr*>*, std::vector<const uchar*>*);
 
     Ui::MainWindow *ui;
 };

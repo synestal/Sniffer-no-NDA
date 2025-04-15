@@ -48,18 +48,14 @@ void GraphBackend::closeEvent(QCloseEvent *event) {
 
 void GraphBackend::createCircleDiagram() {
     std::unordered_map<QString, int>* ObjectsCircle = new std::unordered_map<QString, int>;
-    RoundGraphBackend* graph = new RoundGraphBackend(*ObjectsCircle, *header, *pkt_data);
+    RoundGraphBackend* graph = new RoundGraphBackend(*ObjectsCircle);
     diagrams.push_back(graph);
     diagramsStorage.push_back(ObjectsCircle);
     layout->insertLayout(0, graph->GetLayout());
 }
 
 void GraphBackend::createPikeDiagram() {
-    std::array<std::array<std::array<int,60>,60>, 24>* vault = new std::array<std::array<std::array<int, 60>, 60>, 24>{};
-    std::vector<int>* packetData = new std::vector<int>;
-    diagramsStorage.push_back(new std::pair<std::array<std::array<std::array<int,60>,60>, 24>*, std::vector<int>*>(vault, packetData));
-
-    PikesGraphBackend* pike = new PikesGraphBackend(*vault, *packetData, *header);
+    PikesGraphBackend* pike = new PikesGraphBackend();
     diagrams.push_back(pike);
     layout->insertLayout(0, pike->GetLayout());
 }
