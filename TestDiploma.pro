@@ -73,3 +73,6 @@ DEPENDPATH += \
     libs/PcapPlusPlus-master/builded/include/pcapplusplus \
     libs/PcapPlusPlus-master/builded/include \
     libs/npcap-sdk-1.13/Include \
+
+DISTFILES += \
+    New_architech

@@ -124,8 +124,6 @@ protected:
                                 packetType.append(static_cast<char>(0));
                             }
 
-
-
                             PacketInfo info = extractPacketInfo(pkt_data);
 
                             appender.BeginRow();
@@ -136,9 +134,6 @@ protected:
                             // Добавляем тип пакета как BLOB
                             appender.Append(duckdb::Value::BLOB(
                                 reinterpret_cast<duckdb::const_data_ptr_t>(packetType.constData()), packetType.size()));
-                            appender.Append(duckdb::Value::BLOB(
-                                reinterpret_cast<duckdb::const_data_ptr_t>(pkt_data.constData()), pkt_data.size()));
-
 
                             // Ethernet (канальный уровень)
                             appender.Append(duckdb::Value::BLOB(
