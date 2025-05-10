@@ -151,16 +151,8 @@ void MainWindow::UpdateTableWiew(int startRow, int endRow) {
     }
     TableStorage.clear();
     TableStorage.resize(rowCount);
-    for (auto h : header) {
-        delete h;
-    }
-    for (auto p : pkt_data) {
-        delete[] p;
-    }
-    header.clear();
-    pkt_data.clear();
-    bool success = selectPacketInfoFromDB(startRow, endRow, &header, &pkt_data);
-    if (!success || header.empty() || pkt_data.empty()) {
+    bool success = selectPacketInfoFromDB(startRow, endRow, TableStorage);
+    if (!success) {
         qDebug() << "Failed to retrieve packet data or no data available";
         return;
     }
@@ -168,9 +160,6 @@ void MainWindow::UpdateTableWiew(int startRow, int endRow) {
     //    QByteArray arr(reinterpret_cast<const char*>(pkt_data[i]), header[i]->caplen);
     //    qDebug() << "Packet" << i << ":" << arr.toHex(' ');
     //}
-    std::unique_ptr<functionsToDeterminePacket> determinator =
-        std::make_unique<functionsToDeterminePacket>(header, pkt_data);
-    determinator->mainhandler(TableStorage, startRow, endRow);
 
     if (model) {
         model->setDisplayRange(0, endRow - startRow);
@@ -212,13 +201,7 @@ void MainWindow::onRowClicked(const QModelIndex &index) {
         return;
     }
     int row = index.row();
-    if (row < 0 || row >= static_cast<int>(header.size()) || row >= static_cast<int>(pkt_data.size())) {
-        qDebug() << "Row index out of bounds: " << row << ", header size: " << header.size()
-                 << ", pkt_data size: " << pkt_data.size();
-        return;
-    }
-    auto determinator = std::make_unique<functionsToDeterminePacket>(header, pkt_data);
-    QList<QString> payloadData = determinator->headerDataGetter(header[row], pkt_data[row]);
+    QList<QString> payloadData = TableStorage[row].data.split('\n', Qt::SkipEmptyParts);
     modelDescr = std::make_unique<QStandardItemModel>(this);
     modelDescr->setColumnCount(1);
     ui->tableView_3->setModel(modelDescr.get());
@@ -239,7 +222,7 @@ void MainWindow::AnalysisButtonClicked() {
         qDebug() << "Sniffer is null in AnalysisButtonClicked";
         return;
     }
-    graph = std::make_unique<GraphChoosing>(this, header, pkt_data);
+    graph = std::make_unique<GraphChoosing>(this);
     qDebug() << "Out of constructor";
     graph->setConnection(connection);
     connect(graph.get(), &GraphChoosing::closeRequested, this, [=]() {graph = nullptr;});
@@ -280,68 +263,182 @@ void MainWindow::resizeEvent(QResizeEvent *event) {
     QMainWindow::resizeEvent(event);
 }
 
-bool MainWindow::selectPacketInfoFromDB(int startRow, int endRow, std::vector<const struct pcap_pkthdr*>* header, std::vector<const uchar*>* pkt_data) {
+bool MainWindow::selectPacketInfoFromDB(int startRow, int endRow, std::vector<packet_info>& uiMass) {
     if (!connection) {
         qDebug() << "Connection is null in selectPacketInfoFromDB";
         return false;
     }
-    if (!header || !pkt_data) {
-        qDebug() << "Invalid header or pkt_data pointers";
-        return false;
-    }
+
     try {
-        std::string query = "SELECT ts, caplen, len, data FROM packets "
+        std::string query = "SELECT * FROM packets "
                             "LIMIT " + std::to_string(endRow - startRow) +
                             " OFFSET " + std::to_string(startRow);
-        //qDebug() << QString::fromStdString(query);
+
         auto result = connection->Query(query);
+
         if (!result || result->HasError()) {
             qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
             return false;
         }
+
         size_t row_count = result->RowCount();
-        //qDebug() << "Rows returned:" << row_count;
+
         if (row_count == 0) {
             qDebug() << "No data returned from query";
             return false;
         }
+
+        // Индексы на основе структуры таблицы
+        const int TS_INDEX = 0;
+        const int CAPLEN_INDEX = 1;
+        const int LEN_INDEX = 2;
+        const int PACKET_TYPE_INDEX = 3;
+        const int IPV4_SRC_IP_INDEX = 16;
+        const int IPV4_DST_IP_INDEX = 17;
+        const int IPV6_SRC_IP_INDEX = 23;
+        const int IPV6_DST_IP_INDEX = 24;
+        const int TCP_SRC_PORT_INDEX = 25;
+        const int TCP_DST_PORT_INDEX = 26;
+        const int UDP_SRC_PORT_INDEX = 34;
+        const int UDP_DST_PORT_INDEX = 35;
+        const int ARP_SRC_IP_INDEX = 48;
+        const int ARP_DST_IP_INDEX = 50;
+        const int DATA_INDEX = 51;
+
         for (size_t i = 0; i < row_count; ++i) {
             try {
-                auto ts = result->GetValue<int64_t>(0, i);
-                auto caplen = result->GetValue<int16_t>(1, i);
-                auto len = result->GetValue<int16_t>(2, i);
+                QString ts = QDateTime::fromSecsSinceEpoch(result->GetValue<int64_t>(TS_INDEX, i)).toString("yyyy:MM:dd:hh:mm:ss");
+                auto caplen = result->GetValue<int16_t>(CAPLEN_INDEX, i);
+                auto len = result->GetValue<int16_t>(LEN_INDEX, i);
+                auto packetType = processBlob(result->GetValue(PACKET_TYPE_INDEX, i), "");
 
+                struct {
+                    QString src;
+                    QString dst;
+                } addressInfo;
+                // Заполняем src и dst в зависимости от типа пакета
+                if (packetType == "806" || packetType == "8017" || packetType == "801" || packetType == "802") {
+                    try {
+                        QString ipv4_src_ip = processBlob(result->GetValue(IPV4_SRC_IP_INDEX, i), "time");
+                        QString ipv4_dst_ip = processBlob(result->GetValue(IPV4_DST_IP_INDEX, i), "time");
+                        addressInfo.src = ipv4_src_ip;
+                        addressInfo.dst = ipv4_dst_ip;
+                        // Попробуем добавить порты TCP/UDP
+                        try {
+                            QString tcp_src_port = processBlob(result->GetValue(TCP_SRC_PORT_INDEX, i), "");
+                            QString tcp_dst_port = processBlob(result->GetValue(TCP_DST_PORT_INDEX, i), "");
+                            if (!tcp_src_port.isEmpty()) addressInfo.src += ":" + tcp_src_port;
+                            if (!tcp_dst_port.isEmpty()) addressInfo.dst += ":" + tcp_dst_port;
+                        } catch (...) {}
+                        try {
+                            QString udp_src_port = processBlob(result->GetValue(UDP_SRC_PORT_INDEX, i), "");
+                            QString udp_dst_port = processBlob(result->GetValue(UDP_DST_PORT_INDEX, i), "");
+                            if (!udp_src_port.isEmpty() && addressInfo.src.indexOf(':') == -1)
+                                addressInfo.src += ":" + udp_src_port;
+                            if (!udp_dst_port.isEmpty() && addressInfo.dst.indexOf(':') == -1)
+                                addressInfo.dst += ":" + udp_dst_port;
+                        } catch (...) {}
+                    } catch (const std::exception& e) {
+                        qDebug() << "Error getting IPv4 addresses:" << e.what();
+                        addressInfo.src = "";
+                        addressInfo.dst = "";
+                    }
+                } else if (packetType == "86DD6" || packetType == "86DD17" || packetType == "86DD58") {
+                    try {
+                        QString ipv6_src_ip = processBlob(result->GetValue(IPV6_SRC_IP_INDEX, i), "time");
+                        QString ipv6_dst_ip = processBlob(result->GetValue(IPV6_DST_IP_INDEX, i), "time");
+                        addressInfo.src = ipv6_src_ip;
+                        addressInfo.dst = ipv6_dst_ip;
+                        // Попробуем добавить порты TCP/UDP
+                        try {
+                            QString tcp_src_port = processBlob(result->GetValue(TCP_SRC_PORT_INDEX, i), "");
+                            QString tcp_dst_port = processBlob(result->GetValue(TCP_DST_PORT_INDEX, i), "");
+                            if (!tcp_src_port.isEmpty()) addressInfo.src += ":" + tcp_src_port;
+                            if (!tcp_dst_port.isEmpty()) addressInfo.dst += ":" + tcp_dst_port;
+                        } catch (...) {}
+                        try {
+                            QString udp_src_port = processBlob(result->GetValue(UDP_SRC_PORT_INDEX, i), "");
+                            QString udp_dst_port = processBlob(result->GetValue(UDP_DST_PORT_INDEX, i), "");
+                            if (!udp_src_port.isEmpty() && addressInfo.src.indexOf(':') == -1)
+                                addressInfo.src += ":" + udp_src_port;
+                            if (!udp_dst_port.isEmpty() && addressInfo.dst.indexOf(':') == -1)
+                                addressInfo.dst += ":" + udp_dst_port;
+                        } catch (...) {}
+                    } catch (const std::exception& e) {
+                        qDebug() << "Error getting IPv6 addresses:" << e.what();
+                        addressInfo.src = "";
+                        addressInfo.dst = "";
+                    }
+                } else if (packetType == "86") {
+                    try {
+                        QString arp_src_ip = processBlob(result->GetValue(ARP_SRC_IP_INDEX, i), "time");
+                        QString arp_dst_ip = processBlob(result->GetValue(ARP_DST_IP_INDEX, i), "time");
+                        addressInfo.src = arp_src_ip;
+                        addressInfo.dst = arp_dst_ip;
+                    } catch (const std::exception& e) {
+                        qDebug() << "Error getting ARP addresses:" << e.what();
+                        addressInfo.src = "";
+                        addressInfo.dst = "";
+                    }
+                } else {
+                    // Если тип пакета не ipv4/ipv6/arp, оставляем поля пустыми
+                    addressInfo.src = "";
+                    addressInfo.dst = "";
+                }
                 if (caplen <= 0) {
                     qDebug() << "Row" << i << ": Invalid caplen value:" << caplen;
                     continue;
                 }
-                const duckdb::Value& blob_val = result->GetValue(3, i);
-                if (blob_val.IsNull()) {
-                    qDebug() << "Row" << i << ": BLOB is null, skipping.";
-                    continue;
-                }
-                auto blob = blob_val.GetValueUnsafe<duckdb::string_t>();
-                if (blob.GetSize() < static_cast<size_t>(caplen)) {
-                    qDebug() << "Row" << i << ": BLOB size" << blob.GetSize()
-                             << "is less than caplen" << caplen << ", skipping.";
-                    continue;
-                }
                 auto* hdr = new pcap_pkthdr;
-                hdr->ts.tv_sec = ts;
+                hdr->ts.tv_sec = 0;
                 hdr->ts.tv_usec = 0;
                 hdr->caplen = caplen;
                 hdr->len = len;
-                auto* pkt = new uchar[caplen];
-                memcpy(pkt, blob.GetData(), caplen);
-                header->push_back(hdr);
-                pkt_data->push_back(pkt);
-                //qDebug() << "Row" << i << ": Packet inserted, caplen:" << caplen;
+                uiMass[i].index = QString::number(startRow + i);
+                uiMass[i].timeInfo = ts;
+                uiMass[i].lenInfo = QString::number(caplen);
+                uiMass[i].srcInfo = addressInfo.src;
+                uiMass[i].destInfo = addressInfo.dst;
+
+                if (packetType == "806") {
+                    packetType = "IPv4 - TCP";
+                } else if (packetType == "8017") {
+                    packetType = "IPv4 - UDP";
+                } else if (packetType == "801") {
+                    packetType = "IPv4 - ICMP";
+                } else if (packetType == "802") {
+                    packetType = "IPv4 - IGMP";
+                } else if (packetType == "86DD6") {
+                    packetType = "IPv6 - TCP";
+                } else if (packetType == "86DD17") {
+                    packetType = "IPv6 - UDP";
+                } else if (packetType == "86DD58") {
+                    packetType = "IPv6 - ICMPv6";
+                } else if (packetType == "86") {
+                    packetType = "ARP";
+                } else if (packetType == "8035") {
+                    packetType = "RARP";
+                } else if (packetType == "8137") {
+                    packetType = "IPX";
+                } else if (packetType == "8847") {
+                    packetType = "MPLS Unicast";
+                } else if (packetType == "8848") {
+                    packetType = "MPLS Multicast";
+                } else if (packetType == "8863") {
+                    packetType = "PPPoE Discovery";
+                } else if (packetType == "8864") {
+                    packetType = "PPPoE Session";
+                } else {
+                    packetType = "Unknown: 0x" + packetType;
+                }
+                uiMass[i].packetType = packetType;
+                uiMass[i].data = processBlob(result->GetValue(DATA_INDEX, i), "data");
             } catch (const std::exception& e) {
                 qDebug() << "Error processing row" << i << ":" << e.what();
                 continue;
             }
         }
-        return !header->empty();
+        return true;
     } catch (const std::exception& e) {
         qDebug() << "DuckDB error: " << e.what();
         return false;
@@ -350,11 +447,5 @@ bool MainWindow::selectPacketInfoFromDB(int startRow, int endRow, std::vector<co
 
 MainWindow::~MainWindow() {
     StopSniffing();
-    for (auto h : header) {
-        delete h;
-    }
-    for (auto p : pkt_data) {
-        delete[] p;
-    }
     delete ui;
 }

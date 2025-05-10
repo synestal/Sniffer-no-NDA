@@ -28,8 +28,6 @@
 
 #include "packages/service_pcap/misc.h"
 #include "src/NCard/sniffermonitoring.h"
-#include "src/NCard/functionstodeterminepacket.h"
-#include "src/Windows/graphs/graphy.h"
 #include "src/Windows/resoursesview.h"
 #include "duckdb.hpp"
 
@@ -187,6 +185,45 @@ private:
     void StopSniffing();
     void PauseSniffing();
 
+    QString processBlob(duckdb::Value packet_type_str, QString param) {
+        QString bytes = "";
+        try {
+            auto blob = packet_type_str.GetValueUnsafe<std::string>();
+            if (param == "data") {
+                bytes = "Тело " + QString::number(blob.size()) + " байт:\n";
+            }
+            int position = -1;
+            for (char c : blob) {
+                position++;
+
+                if (param == "data") {
+                    bytes += QString::number(static_cast<uint8_t>(c), 16).toUpper().rightJustified(2, '0');;
+                } else {
+                    bytes += QString::number(static_cast<uint8_t>(c));
+                }
+
+                if (param == "time" && position != blob.size() - 1) {
+                    bytes += ".";
+                }
+                if (param == "data" && position != blob.size() - 1) {
+                    bytes += " ";
+                }
+                if (param == "data" && position != blob.size() - 1  && position != 0 && position % 16 == 0) {
+                    bytes += "\n";
+                }
+            }
+            if (param == "data") {
+                if(position == -1) {
+                    bytes = "В пакете нет тела";
+                }
+                //qDebug() << bytes;
+            }
+        } catch (const std::exception& e) {
+            qDebug() << "Error processBlob:" << QString::fromStdString(packet_type_str.GetValueUnsafe<std::string>()) << e.what();
+        }
+        return bytes;
+    }
+
     void UpdateTableWiew(int, int); // Обновление таблицы
     int maxScrollValue = 0;         // Первый элемент из диапазона на вывод - unstable
     int currScrollValue = 0;        // Положение ползунка - unstable
@@ -217,9 +254,7 @@ private:
 
     std::shared_ptr<duckdb::Connection> connection = nullptr;
 
-    std::vector<const struct pcap_pkthdr*> header;
-    std::vector<const uchar*> pkt_data;
-    bool selectPacketInfoFromDB(int, int, std::vector<const struct pcap_pkthdr*>*, std::vector<const uchar*>*);
+    bool selectPacketInfoFromDB(int, int, std::vector<packet_info>&);
 
     Ui::MainWindow *ui;
 };

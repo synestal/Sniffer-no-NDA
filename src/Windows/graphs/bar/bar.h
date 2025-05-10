@@ -1,8 +1,9 @@
-#ifndef PIKEGRAPH_H
-#define PIKEGRAPH_H
+#ifndef BAR_H
+#define BAR_H
 
 #include <QtCharts/QChartView>
-#include <QtCharts/QLineSeries>
+#include <QtCharts/QBarSeries>
+#include <QtCharts/QBarSet>
 #include <QtCharts/QValueAxis>
 #include <QVBoxLayout>
 #include <QDateTime>
@@ -19,10 +20,10 @@
 
 #include "duckdb.hpp"
 
-class PikesGraph : public QDialog {
+class BarGraph : public QDialog {
     Q_OBJECT
 public:
-    explicit PikesGraph(QWidget *parent = nullptr) : QDialog(parent) {
+    explicit BarGraph(QWidget *parent = nullptr) : QDialog(parent) {
         ConstructGraph();
     }
 
@@ -42,15 +43,18 @@ public:
 
 public slots:
     void Repaint() {
+        series->clear();
         axisX->setRange(0, maxSize);
         axisY->setRange(0, maxValue);
         int index = 0;
+        QBarSet *packetSizes = new QBarSet("Размеры пакетов (байт)");
         for (auto i : *GraphData) {
-            series->append(index, i.second);
+            *packetSizes << i.second;
             axisX->append(i.first, index);
             ++index;
         }
-        series->setColor(colorCurr);
+        packetSizes->setColor(colorCurr);
+        series->append(packetSizes);
     }
     void setColor(QColor color) {
         if (series == nullptr) {return;}
@@ -62,10 +66,10 @@ private:
         axisX = new QCategoryAxis();
         axisY = new QValueAxis();
         chartView = new QChartView(chart);
-        series = new QLineSeries();
+        series = new QBarSeries();
 
         chart->addSeries(series);
-        chart->setTitle("Распределение количества пакетов от времени");
+        chart->setTitle("Распределение");
         axisX->setTitleText("Время");
         chart->addAxis(axisX, Qt::AlignBottom);
         series->attachAxis(axisX);
@@ -73,16 +77,6 @@ private:
         chart->addAxis(axisY, Qt::AlignLeft);
         series->attachAxis(axisY);
         chartView->setRenderHint(QPainter::Antialiasing);
-        connect(series, &QLineSeries::hovered, this, [=](const QPointF &point, bool state) {
-            if (state) {
-                QString text = QString("X: %1\nY: %2")
-                                    .arg(point.x(), 0, 'f', 2)
-                                    .arg(point.y(), 0, 'f', 2);
-                QToolTip::showText(QCursor::pos(), text);
-            } else {
-                QToolTip::hideText();
-            }
-        });
         chartView->setRubberBand(QChartView::RectangleRubberBand);
         chartView->setDragMode(QGraphicsView::ScrollHandDrag);
     }
@@ -94,9 +88,9 @@ private:
 
     QChartView *chartView = nullptr;
     QChart* chart = nullptr;
-    QCategoryAxis *axisX = nullptr;
-    QValueAxis *axisY = nullptr;
-    QLineSeries* series = nullptr;
+    QCategoryAxis* axisX = nullptr;
+    QValueAxis* axisY = nullptr;
+    QBarSeries* series = nullptr;
     QColor colorCurr;
 
     std::vector<std::pair<QString, int>>* GraphData = nullptr;
@@ -104,11 +98,10 @@ private:
 
 
 
-class PikesGraphBackend : public QDialog {
+class BarGraphBackend : public QDialog {
     Q_OBJECT
 public:
-    PikesGraphBackend(QWidget *parent = nullptr);
-    ~PikesGraphBackend();
+    BarGraphBackend(QWidget *parent = nullptr);
 
     QVBoxLayout* GetLayout();
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
@@ -117,9 +110,11 @@ public:
     QChartView* GetChartView() {
         return graph->GetChart();
     }
-    int start = -1;
+
+    int start = -2;
     int stop = -1;
     int offset = 1000;
+    ~BarGraphBackend();
 
 public slots:
     void Repaint();
@@ -130,13 +125,13 @@ public slots:
 private:
     void ConstructGraph();
 
-    std::vector<std::pair<QString, int>> SearchByParams(int, int, int, int);
+    std::vector<std::pair<QString, int>> SearchByParams(int, int, int);
 
     void setGraphMode(int mode);
     int settingsApply();
 
     QVBoxLayout* layout = nullptr;
-    PikesGraph* graph = nullptr;
+    BarGraph* graph = nullptr;
 
     int timeLive = -1;
     int maxSize = 0;
@@ -144,13 +139,10 @@ private:
 
     int prevMaxSize = 0;
 
-    enum Settings {hour, minute, second, liveH, liveM, liveS};
-    Settings currentSetting = second;
-
     std::vector<std::pair<QString, int>>* GraphData = new std::vector<std::pair<QString, int>>;
 
     std::shared_ptr<duckdb::Connection> connection = nullptr;
 
 };
 
-#endif // PIKEGRAPH_H
+#endif // BAR_H

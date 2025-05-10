@@ -28,6 +28,7 @@ void RoundGraph::ConstructGraph() {
 }
 
 void RoundGraph::Repaint() {
+    chartView->setUpdatesEnabled(false);
     series->clear();
     for (const auto& item : *ObjectsCount) {
         series->append(item.first, item.second);
@@ -35,8 +36,14 @@ void RoundGraph::Repaint() {
     for (auto slice : series->slices()) {
         slice->setLabelVisible(true);
         slice->setLabel(QString("%1: %2").arg(slice->label()).arg(slice->value()));
+        slice->setLabelPosition(QPieSlice::LabelOutside);
     }
-    chartView->repaint();
+    for (int i = 0; i < series->count(); ++i) {
+            QColor lighterColor = colorCurr.lighter(100 + i * 4);
+            series->slices().at(i)->setColor(lighterColor);
+        }
+    chartView->setUpdatesEnabled(true);
+    chartView->update();
 }
 
 QChart* RoundGraphBackend::GetCh() {
@@ -51,9 +58,15 @@ QChartView* RoundGraph::GetChart() {
 /*
  * CLASS RoundGraphBackend
 */
-RoundGraphBackend::RoundGraphBackend(std::unordered_map<QString, int>& obj, QWidget *parent)
-        : QDialog(parent), ObjectsCount(&obj) {
+RoundGraphBackend::RoundGraphBackend(QWidget *parent)
+        : QDialog(parent) {
+        ObjectsCount = new std::unordered_map<QString, int>;
         ConstructGraph();
+}
+RoundGraphBackend::~RoundGraphBackend() {
+    delete graph;
+    delete layout;
+    delete ObjectsCount;
 }
 
 QChartView* RoundGraphBackend::GetChartView() {

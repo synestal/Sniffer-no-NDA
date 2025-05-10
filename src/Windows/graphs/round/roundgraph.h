@@ -10,18 +10,23 @@
 #include <QPushButton>
 
 
-#include "src/NCard/functionstodeterminepacket.h"
 #include "duckdb.hpp"
 #include <unordered_map>
 
 class RoundGraph : public QDialog {
     Q_OBJECT
+public slots:
+    void setColor(QColor color) {
+        if (series == nullptr) {return;}
+        colorCurr = color;
+    }
 public:
     RoundGraph(std::unordered_map<QString, int>& obj, QWidget *parent = nullptr);
     QChartView* GetChart();
     void Repaint();
 private:
     void ConstructGraph();
+    QColor colorCurr = 255;
 
     QChartView *chartView = nullptr;
     QChart* chart = nullptr;
@@ -33,7 +38,8 @@ private:
 class RoundGraphBackend : public QDialog {
     Q_OBJECT
 public:
-    RoundGraphBackend(std::unordered_map<QString, int>& obj, QWidget *parent = nullptr);
+    RoundGraphBackend(QWidget *parent = nullptr);
+    ~RoundGraphBackend();
 
     QVBoxLayout* GetLayout();
     QChart* GetCh();
@@ -43,6 +49,14 @@ public:
     }
     int SearchByParams(int, int, const QString );
     QChartView* GetChartView();
+    int start = -1;
+    int stop = -1;
+    int offset = 1000;
+public slots:
+    void setColor(QColor color) {
+        if (graph == nullptr) {return;}
+        graph->setColor(color);
+    }
 private:
     void ConstructGraph();
 

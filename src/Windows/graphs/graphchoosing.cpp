@@ -16,12 +16,14 @@
  * Class GraphBackend
 */
 
-GraphChoosing::GraphChoosing(QWidget *parent, std::vector<const struct pcap_pkthdr*>& hdr, std::vector<const uchar*>& dta) : QDialog(parent), header(&hdr), pkt_data(&dta), ui(new Ui::GraphChoosing) {
+GraphChoosing::GraphChoosing(QWidget *parent) : QDialog(parent), ui(new Ui::GraphChoosing) {
     ui->setupUi(this);
-    connect(ui->actionCreatePieChart, &QAction::triggered, this, &GraphChoosing::createCircleDiagram);
-    connect(ui->actionCreateLineChart, &QAction::triggered, this, &GraphChoosing::createPikeDiagram);
+    connect(ui->actionCreatePieChart, &QAction::triggered, this, [this](){this->createDiagram("circle");});
+    connect(ui->actionCreateLineChart, &QAction::triggered, this, [this](){this->createDiagram("pike");});
+    connect(ui->actionCreateBarChart, &QAction::triggered, this, [this](){this->createDiagram("bar");});
+    ui->verticalLayout->removeWidget(ui->chartGroupBox1);
+    ui->chartGroupBox1->hide();
     resize(1920, 1080);
-
     updateTimer = new QTimer(this);
     connect(updateTimer, &QTimer::timeout, this, &GraphChoosing::Repaint);
     updateTimer->start(200);
@@ -37,39 +39,89 @@ void GraphChoosing::closeEvent(QCloseEvent *event) {
     }
 }
 
-void GraphChoosing::createCircleDiagram() {
-    auto* chartContainer = new QWidget();
-    chartContainer->setMinimumHeight(400);
-    chartContainer->setMaximumHeight(400);
-    auto* layout = new QHBoxLayout(chartContainer);
-    std::unordered_map<QString, int>* ObjectsCircle = new std::unordered_map<QString, int>;
-    RoundGraphBackend* graph = new RoundGraphBackend(*ObjectsCircle);
-    graph->setConnection(connection);
-    diagrams.push_back(graph);
-    diagramsStorage.push_back(ObjectsCircle);
-    graph->Repaint();
-    layout->addWidget(graph->GetChartView());
-    ui->chartsLayout->addWidget(chartContainer);
+GraphVariant GraphChoosing::createGraphVariant(const QString& type) {
+    if (type == "circle") {
+        return new RoundGraphBackend();
+    } else if (type == "pike") {
+        return new PikesGraphBackend();
+    } else if (type == "bar") {
+        return new BarGraphBackend();
+    }
+    throw std::runtime_error("Unknown graph type");
 }
 
-void GraphChoosing::createPikeDiagram() {
-    auto* chartContainer = new QWidget();
-    chartContainer->setMinimumHeight(400);
-    chartContainer->setMaximumHeight(400);
-    auto* layout = new QHBoxLayout(chartContainer);
-    PikesGraphBackend* pike = new PikesGraphBackend();
-    pike->setConnection(connection);
-    diagrams.push_back(pike);
-    pike->Repaint();
-    layout->addWidget(pike->GetChartView());
-    ui->chartsLayout->addWidget(chartContainer);
-    //ui->MainLayout->insertLayout(0, pike->GetLayout());
-}
+void GraphChoosing::createDiagram(QString type) {
+    auto* chartGroupBox = new QGroupBox(QString("График %1").arg(ui->chartsLayout->count()));
+    chartGroupBox->setMinimumHeight(400);
+    chartGroupBox->setMaximumHeight(400);
+    auto* mainLayout = new QHBoxLayout(chartGroupBox);
+    GraphVariant graphVariant = createGraphVariant(type);
+    diagrams.push_back(graphVariant);
+    std::visit([&](auto&& graph) {
+        graph->setConnection(connection);
+        graph->Repaint();
+        mainLayout->addWidget(graph->GetChartView());
+        }, graphVariant);
+    auto* settingsGroupBox = new QGroupBox("Настройки");
+    auto* settingsLayout = new QVBoxLayout(settingsGroupBox);
+    auto* typeComboBox = new QComboBox();
+    if (std::holds_alternative<BarGraphBackend*>(graphVariant)) {
+        QLineEdit *lineEdit = new QLineEdit(this);
+        lineEdit->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        lineEdit->setPlaceholderText("-2,-1,1000");
+        settingsLayout->addWidget(lineEdit);
+        connect(lineEdit, &QLineEdit::returnPressed, [=]() {
+            QString text = lineEdit->text();
+            QStringList parts = text.split(",");
+            if (parts.size() != 3) {
+                qDebug() << "Ошибка: неверный формат строки";
+                return;
+            }
+            bool ok1, ok2, ok3;
+            int num1 = parts[0].toInt(&ok1);
+            int num2 = parts[1].toInt(&ok2);
+            int num3 = parts[2].toInt(&ok3);
+            if (!ok1 || !ok2 || !ok3) {
+                qDebug() << "Ошибка: не все части являются числами";
+                return;
+            }
+            std::visit([&](auto&& graph) {
+                graph->start = num1;
+                graph->stop = num2;
+                graph->offset = num3;
+                }, graphVariant);
+        });
+    }
+    typeComboBox->addItems({"Круговая", "Линейная", "Столбчатая", "Точечная"});
+    settingsLayout->addWidget(typeComboBox);
+    auto* gridCheckBox = new QCheckBox("Показать сетку");
+    settingsLayout->addWidget(gridCheckBox);
+    auto* colorButton = new QPushButton("Цвет линии");
+    settingsLayout->addWidget(colorButton);
+    settingsLayout->addStretch();
+    mainLayout->addWidget(settingsGroupBox);
+    ui->chartsLayout->insertWidget(ui->chartsLayout->count() - 1, chartGroupBox);
 
+    std::visit([&](auto&& graph) {
+        connect(colorButton, &QPushButton::clicked, [this, graph]() {
+            QColor color = QColorDialog::getColor(Qt::red, this, "Выберите цвет линии");
+            if (color.isValid()) {
+                graph->setColor(color);
+            }
+        });
+        }, graphVariant);
+    /*
 
-void GraphChoosing::setSrc(std::vector<const struct pcap_pkthdr*>& inputHdr, std::vector<const uchar*>& inputDta) {
-    header = &inputHdr;
-    pkt_data = &inputDta;
+    connect(gridCheckBox, &QCheckBox::stateChanged, [graph](int state) {
+        graph->SetGridVisible(state == Qt::Checked);
+    });
+
+    connect(typeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [this, graph](int index) {
+                // Здесь логика изменения типа графика
+                // Вам нужно реализовать этот метод в RoundGraphBackend
+                graph->ChangeChartType(index);
+            }); */
 }
 
 void GraphChoosing::Repaint() {
@@ -81,6 +133,9 @@ void GraphChoosing::Repaint() {
         } else if (std::holds_alternative<PikesGraphBackend*>(*diagramIt)) {
             PikesGraphBackend* pikesGraph = std::get<PikesGraphBackend*>(*diagramIt);
             pikesGraph->Repaint();
+        } else if (std::holds_alternative<BarGraphBackend*>(*diagramIt)) {
+            BarGraphBackend* barGraph = std::get<BarGraphBackend*>(*diagramIt);
+            barGraph->Repaint();
         }
     }
 }
@@ -93,11 +148,8 @@ void GraphChoosing::Cleanup() {
             delete std::get<RoundGraphBackend*>(graph);
         } else if (std::holds_alternative<PikesGraphBackend*>(graph)) {
             delete std::get<PikesGraphBackend*>(graph);
-        }
-    }
-    for (auto& storage : diagramsStorage) {
-        if (std::holds_alternative<std::unordered_map<QString, int>*>(storage)) {
-            delete std::get<std::unordered_map<QString, int>*>(storage);
+        } else if (std::holds_alternative<BarGraphBackend*>(graph)) {
+            delete std::get<BarGraphBackend*>(graph);
         }
     }
 }
