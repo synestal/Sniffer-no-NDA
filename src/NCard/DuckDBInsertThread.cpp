@@ -1,366 +1,362 @@
 #include "DuckDBInsertThread.h"
 
-
-void DuckDBInsertThread::run() {
-    constexpr int batchSize = 10000;
-    constexpr int waitTimeMs = 10;
-    while (true) {
-        QMutexLocker locker(&mutex_);
-        while (packetQueue_.isEmpty() && !stop_) {
-            cond_.wait(&mutex_);
-        }
-        if (stop_ && packetQueue_.isEmpty()) break;
-        int count = 0;
-        std::vector<std::tuple<pcap_pkthdr, QByteArray>> batch;
-        batch.reserve(batchSize);
-        while (!packetQueue_.isEmpty() && count < batchSize) {
-            auto pair = packetQueue_.dequeue();
-            batch.push_back(std::make_tuple(pair.first, std::move(pair.second)));
-            count++;
-        }
-        locker.unlock();
-        if (!batch.empty()) {
-            try {
-                con->Query("BEGIN TRANSACTION;");
-                {
-                    duckdb::Appender appender(*con, "packets");
-                    for (auto &[header, pkt_data] : batch) {
-                        // Извлекаем тип пакета (13-й и 14-й байты)
-                        QByteArray packetType;
-
-                        if (pkt_data.size() > 13) {
-                            uint8_t eth_type_1 = static_cast<uint8_t>(pkt_data[12]);
-                            uint8_t eth_type_2 = static_cast<uint8_t>(pkt_data[13]);
-
-                            // Добавляем этернет тип
-                            packetType.append(static_cast<char>(eth_type_1));
-                            packetType.append(static_cast<char>(eth_type_2));
-
-                            // Проверяем на IPv4
-                            if (eth_type_1 == 0x08 && eth_type_2 == 0x00 && pkt_data.size() > 23) {
-                                // Добавляем тип протокола IPv4 (24-й байт)
-                                packetType.append(pkt_data[23]);
-                            }
-                            // Проверяем на IPv6
-                            else if (eth_type_1 == 0x86 && eth_type_2 == 0xDD && pkt_data.size() > 20) {
-                                // Добавляем тип протокола IPv6 (21-й байт)
-                                packetType.append(pkt_data[20]);
-                            }
-                        } else if (pkt_data.size() > 12) {
-                            // Если есть только 13-й байт
-                            packetType.append(pkt_data[12]);
-                            packetType.append(static_cast<char>(0));
-                        } else {
-                            // Если пакет слишком короткий
-                            packetType.append(static_cast<char>(0));
-                            packetType.append(static_cast<char>(0));
-                        }
-
-
-
-                        PacketInfo info = extractPacketInfo(pkt_data);
-
-                        appender.BeginRow();
-
-                        appender.Append<int64_t>(header.ts.tv_sec);
-                        appender.Append<uint16_t>(header.caplen);
-                        appender.Append<uint16_t>(header.len);
-                        // Добавляем тип пакета как BLOB
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(packetType.constData()), packetType.size()));
-
-
-                        // Ethernet (канальный уровень)
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.eth_src_mac.constData()), info.eth_src_mac.size()));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.eth_dst_mac.constData()), info.eth_dst_mac.size()));
-
-                        // EtherType as BLOB
-                        QByteArray eth_type_bytes(sizeof(uint16_t), 0);
-                        memcpy(eth_type_bytes.data(), &info.eth_type, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(eth_type_bytes.constData()), eth_type_bytes.size()));
-
-                        // IP version as BLOB
-                        QByteArray ip_version_bytes(sizeof(uint8_t), 0);
-                        memcpy(ip_version_bytes.data(), &info.ip_version, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ip_version_bytes.constData()), ip_version_bytes.size()));
-
-                        // IPv4 fields as BLOBs
-                        QByteArray ipv4_header_length_bytes(sizeof(uint8_t), 0);
-                        memcpy(ipv4_header_length_bytes.data(), &info.ipv4_header_length, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_header_length_bytes.constData()), ipv4_header_length_bytes.size()));
-
-                        QByteArray ipv4_tos_bytes(sizeof(uint8_t), 0);
-                        memcpy(ipv4_tos_bytes.data(), &info.ipv4_tos, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_tos_bytes.constData()), ipv4_tos_bytes.size()));
-
-                        QByteArray ipv4_total_length_bytes(sizeof(uint16_t), 0);
-                        memcpy(ipv4_total_length_bytes.data(), &info.ipv4_total_length, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_total_length_bytes.constData()), ipv4_total_length_bytes.size()));
-
-                        QByteArray ipv4_id_bytes(sizeof(uint16_t), 0);
-                        memcpy(ipv4_id_bytes.data(), &info.ipv4_id, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_id_bytes.constData()), ipv4_id_bytes.size()));
-
-                        QByteArray ipv4_flags_fragment_bytes(sizeof(uint16_t), 0);
-                        memcpy(ipv4_flags_fragment_bytes.data(), &info.ipv4_flags_fragment, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_flags_fragment_bytes.constData()), ipv4_flags_fragment_bytes.size()));
-
-                        QByteArray ipv4_ttl_bytes(sizeof(uint8_t), 0);
-                        memcpy(ipv4_ttl_bytes.data(), &info.ipv4_ttl, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_ttl_bytes.constData()), ipv4_ttl_bytes.size()));
-
-                        QByteArray ipv4_protocol_bytes(sizeof(uint8_t), 0);
-                        memcpy(ipv4_protocol_bytes.data(), &info.ipv4_protocol, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_protocol_bytes.constData()), ipv4_protocol_bytes.size()));
-
-                        QByteArray ipv4_checksum_bytes(sizeof(uint16_t), 0);
-                        memcpy(ipv4_checksum_bytes.data(), &info.ipv4_checksum, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv4_checksum_bytes.constData()), ipv4_checksum_bytes.size()));
-
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.ipv4_src_ip.constData()), info.ipv4_src_ip.size()));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.ipv4_dst_ip.constData()), info.ipv4_dst_ip.size()));
-
-                        // IPv6 fields as BLOBs
-                        QByteArray ipv6_traffic_class_bytes(sizeof(uint8_t), 0);
-                        memcpy(ipv6_traffic_class_bytes.data(), &info.ipv6_traffic_class, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv6_traffic_class_bytes.constData()), ipv6_traffic_class_bytes.size()));
-
-                        QByteArray ipv6_flow_label_bytes(sizeof(uint32_t), 0);
-                        memcpy(ipv6_flow_label_bytes.data(), &info.ipv6_flow_label, sizeof(uint32_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv6_flow_label_bytes.constData()), ipv6_flow_label_bytes.size()));
-
-                        QByteArray ipv6_payload_length_bytes(sizeof(uint16_t), 0);
-                        memcpy(ipv6_payload_length_bytes.data(), &info.ipv6_payload_length, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv6_payload_length_bytes.constData()), ipv6_payload_length_bytes.size()));
-
-                        QByteArray ipv6_next_header_bytes(sizeof(uint8_t), 0);
-                        memcpy(ipv6_next_header_bytes.data(), &info.ipv6_next_header, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv6_next_header_bytes.constData()), ipv6_next_header_bytes.size()));
-
-                        QByteArray ipv6_hop_limit_bytes(sizeof(uint8_t), 0);
-                        memcpy(ipv6_hop_limit_bytes.data(), &info.ipv6_hop_limit, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(ipv6_hop_limit_bytes.constData()), ipv6_hop_limit_bytes.size()));
-
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.ipv6_src_ip.constData()), info.ipv6_src_ip.size()));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.ipv6_dst_ip.constData()), info.ipv6_dst_ip.size()));
-
-                        // TCP fields as BLOBs
-                        QByteArray tcp_src_port_bytes(sizeof(uint16_t), 0);
-                        memcpy(tcp_src_port_bytes.data(), &info.tcp_src_port, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_src_port_bytes.constData()), tcp_src_port_bytes.size()));
-
-                        QByteArray tcp_dst_port_bytes(sizeof(uint16_t), 0);
-                        memcpy(tcp_dst_port_bytes.data(), &info.tcp_dst_port, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_dst_port_bytes.constData()), tcp_dst_port_bytes.size()));
-
-                        QByteArray tcp_seq_num_bytes(sizeof(uint32_t), 0);
-                        memcpy(tcp_seq_num_bytes.data(), &info.tcp_seq_num, sizeof(uint32_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_seq_num_bytes.constData()), tcp_seq_num_bytes.size()));
-
-                        QByteArray tcp_ack_num_bytes(sizeof(uint32_t), 0);
-                        memcpy(tcp_ack_num_bytes.data(), &info.tcp_ack_num, sizeof(uint32_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_ack_num_bytes.constData()), tcp_ack_num_bytes.size()));
-
-                        QByteArray tcp_header_length_bytes(sizeof(uint8_t), 0);
-                        memcpy(tcp_header_length_bytes.data(), &info.tcp_header_length, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_header_length_bytes.constData()), tcp_header_length_bytes.size()));
-
-                        QByteArray tcp_flags_bytes(sizeof(uint8_t), 0);
-                        memcpy(tcp_flags_bytes.data(), &info.tcp_flags, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_flags_bytes.constData()), tcp_flags_bytes.size()));
-
-                        QByteArray tcp_window_size_bytes(sizeof(uint16_t), 0);
-                        memcpy(tcp_window_size_bytes.data(), &info.tcp_window_size, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_window_size_bytes.constData()), tcp_window_size_bytes.size()));
-
-                        QByteArray tcp_checksum_bytes(sizeof(uint16_t), 0);
-                        memcpy(tcp_checksum_bytes.data(), &info.tcp_checksum, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_checksum_bytes.constData()), tcp_checksum_bytes.size()));
-
-                        QByteArray tcp_urgent_pointer_bytes(sizeof(uint16_t), 0);
-                        memcpy(tcp_urgent_pointer_bytes.data(), &info.tcp_urgent_pointer, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(tcp_urgent_pointer_bytes.constData()), tcp_urgent_pointer_bytes.size()));
-
-                        // UDP fields as BLOBs
-                        QByteArray udp_src_port_bytes(sizeof(uint16_t), 0);
-                        memcpy(udp_src_port_bytes.data(), &info.udp_src_port, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(udp_src_port_bytes.constData()), udp_src_port_bytes.size()));
-
-                        QByteArray udp_dst_port_bytes(sizeof(uint16_t), 0);
-                        memcpy(udp_dst_port_bytes.data(), &info.udp_dst_port, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(udp_dst_port_bytes.constData()), udp_dst_port_bytes.size()));
-
-                        QByteArray udp_length_bytes(sizeof(uint16_t), 0);
-                        memcpy(udp_length_bytes.data(), &info.udp_length, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(udp_length_bytes.constData()), udp_length_bytes.size()));
-
-                        QByteArray udp_checksum_bytes(sizeof(uint16_t), 0);
-                        memcpy(udp_checksum_bytes.data(), &info.udp_checksum, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(udp_checksum_bytes.constData()), udp_checksum_bytes.size()));
-
-                        // ICMP fields as BLOBs
-                        QByteArray icmp_type_bytes(sizeof(uint8_t), 0);
-                        memcpy(icmp_type_bytes.data(), &info.icmp_type, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(icmp_type_bytes.constData()), icmp_type_bytes.size()));
-
-                        QByteArray icmp_code_bytes(sizeof(uint8_t), 0);
-                        memcpy(icmp_code_bytes.data(), &info.icmp_code, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(icmp_code_bytes.constData()), icmp_code_bytes.size()));
-
-                        QByteArray icmp_checksum_bytes(sizeof(uint16_t), 0);
-                        memcpy(icmp_checksum_bytes.data(), &info.icmp_checksum, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(icmp_checksum_bytes.constData()), icmp_checksum_bytes.size()));
-
-                        QByteArray icmp_rest_of_header_bytes(sizeof(uint32_t), 0);
-                        memcpy(icmp_rest_of_header_bytes.data(), &info.icmp_rest_of_header, sizeof(uint32_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(icmp_rest_of_header_bytes.constData()), icmp_rest_of_header_bytes.size()));
-
-                        // ARP fields as BLOBs
-                        QByteArray arp_hw_type_bytes(sizeof(uint16_t), 0);
-                        memcpy(arp_hw_type_bytes.data(), &info.arp_hw_type, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(arp_hw_type_bytes.constData()), arp_hw_type_bytes.size()));
-
-                        QByteArray arp_protocol_type_bytes(sizeof(uint16_t), 0);
-                        memcpy(arp_protocol_type_bytes.data(), &info.arp_protocol_type, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(arp_protocol_type_bytes.constData()), arp_protocol_type_bytes.size()));
-
-                        QByteArray arp_hw_size_bytes(sizeof(uint8_t), 0);
-                        memcpy(arp_hw_size_bytes.data(), &info.arp_hw_size, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(arp_hw_size_bytes.constData()), arp_hw_size_bytes.size()));
-
-                        QByteArray arp_protocol_size_bytes(sizeof(uint8_t), 0);
-                        memcpy(arp_protocol_size_bytes.data(), &info.arp_protocol_size, sizeof(uint8_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(arp_protocol_size_bytes.constData()), arp_protocol_size_bytes.size()));
-
-                        QByteArray arp_opcode_bytes(sizeof(uint16_t), 0);
-                        memcpy(arp_opcode_bytes.data(), &info.arp_opcode, sizeof(uint16_t));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(arp_opcode_bytes.constData()), arp_opcode_bytes.size()));
-
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.arp_src_mac.constData()), info.arp_src_mac.size()));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.arp_src_ip.constData()), info.arp_src_ip.size()));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.arp_dst_mac.constData()), info.arp_dst_mac.size()));
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(info.arp_dst_ip.constData()), info.arp_dst_ip.size()));
-
-                        // Full packet payload
-                        appender.Append(duckdb::Value::BLOB(
-                            reinterpret_cast<duckdb::const_data_ptr_t>(pkt_data.constData()), pkt_data.size()));
-
-                        appender.EndRow();
-                    }
-                    appender.Flush();
-                    appender.Close();
-                }
-                con->Query("COMMIT;");
-                emit insertCommited(batch.size());
-            } catch (const std::exception& e) {
-                qWarning() << "Exception in database operation: " << e.what();
-                con->Query("ROLLBACK;");
-            }
-        }
-        if (count < batchSize) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(waitTimeMs));
-        }
+DuckDBInsertThread::DuckDBInsertThread(std::string _filename, QObject* parent)
+    : QThread(parent),
+      db(nullptr),
+      con(nullptr),
+      filename(_filename),
+      stop_(false),
+      batchSize(10000),
+      waitTimeMs(10),
+      transactionActive(false),
+      droppedPackets(0),
+      processedPackets(0) {
+    if (!initializeDatabase()) {
+        qWarning() << "Failed to initialize database";
+        stop_ = true;
     }
 }
 
+DuckDBInsertThread::~DuckDBInsertThread() {
+    stop();
+    if (con) {
+        try {
+            if (transactionActive) {
+                rollbackTransaction();
+            }
+            con->Commit();
+            } catch (const std::exception& e) {
+                qWarning() << "Exception during connection cleanup in destructor: " << e.what();
+        } catch (...) {
+            qWarning() << "Unknown exception during connection cleanup in destructor";
+        }
+    }
+    try {
+        con.reset();
+        db.reset();
+    } catch (...) {
+        qWarning() << "Exception during pointer cleanup in destructor";
+    }
+}
+
+std::shared_ptr<duckdb::Connection> DuckDBInsertThread::getConnection() const {
+    return con;
+}
+
+bool DuckDBInsertThread::initializeDatabase() {
+    try {
+        db = std::make_shared<duckdb::DuckDB>(filename);
+        if (!db) {
+            emit errorOccurred("Failed to create database");
+            return false;
+        }
+        con = std::make_shared<duckdb::Connection>(*db);
+        if (!con) {
+            db.reset();
+            emit errorOccurred("Failed to create database connection");
+            return false;
+        }
+        con->Query("PRAGMA memory_limit='100MB';");
+        ensureTableExists();
+        return true;
+    } catch (const std::exception &e) {
+        emit errorOccurred(QString("Database initialization error: %1").arg(e.what()));
+        return false;
+    }
+}
+
+void DuckDBInsertThread::addPacket(const struct pcap_pkthdr header, const QByteArray data) {
+    QMutexLocker locker(&mutex_);
+    if (packetQueue_.size() >= maxQueueSize) {
+        packetQueue_.dequeue();
+        droppedPackets.fetchAndAddRelaxed(1);
+        static QAtomicInt dropNotifyCounter(0);
+        if (dropNotifyCounter.fetchAndAddRelaxed(1) % 1000 == 0) {
+            emit errorOccurred(QString("Queue overflow: %1 packets dropped").arg(droppedPackets.loadRelaxed()));
+        }
+    }
+    packetQueue_.enqueue({ header, data });
+    cond_.wakeOne();
+}
+
+void DuckDBInsertThread::stop() {
+    stop_.storeRelease(true);
+    {
+        QMutexLocker locker(&mutex_);
+        cond_.wakeAll();
+    }
+    if (isRunning()) {
+        if (!wait(5000)) {
+            qWarning() << "Thread did not terminate gracefully, forcing termination";
+            terminate();
+            wait();
+        }
+    }
+}
+int64_t DuckDBInsertThread::getMaxId() {
+    if (!con) return -1;
+    try {
+        auto result = con->Query("SELECT MAX(rowid) FROM packets;");
+        if (!result->HasError() && result->RowCount() > 0) {
+            return result->GetValue<int64_t>(0, 0);
+        }
+        return 0;
+    } catch (const std::exception& e) {
+        qWarning() << "Failed to get max id: " << e.what();
+        return -1;
+    }
+}
+void DuckDBInsertThread::adjustBatchSize(int newSize) {
+    QMutexLocker locker(&mutex_);
+    if (newSize > 0 && newSize <= 100000) {
+        batchSize = newSize;
+    }
+}
+bool DuckDBInsertThread::beginTransaction() {
+    if (!con) return false;
+    try {
+        con->Query("BEGIN TRANSACTION;");
+        transactionActive = true;
+        return true;
+    } catch (const std::exception& e) {
+        qWarning() << "Failed to begin transaction: " << e.what();
+        transactionActive = false;
+        return false;
+    }
+}
+bool DuckDBInsertThread::commitTransaction() {
+    if (!con || !transactionActive) return false;
+    try {
+        con->Query("COMMIT;");
+        transactionActive = false;
+        return true;
+    } catch (const std::exception& e) {
+        qWarning() << "Failed to commit transaction: " << e.what();
+        rollbackTransaction();
+        return false;
+    }
+}
+
+void DuckDBInsertThread::rollbackTransaction() {
+    if (!con || !transactionActive) return;
+    try {
+        con->Query("ROLLBACK;");
+    } catch (const std::exception& e) {
+        qWarning() << "Failed to rollback transaction: " << e.what();
+    }
+    transactionActive = false;
+}
+
+void DuckDBInsertThread::run() {
+    if (!con || stop_.loadAcquire()) return;
+    std::vector<std::tuple<pcap_pkthdr, QByteArray>> batch;
+    batch.reserve(batchSize);
+    while (!stop_.loadAcquire()) {
+        {
+            QMutexLocker locker(&mutex_);
+                        if (stop_.loadAcquire()) break;
+                        if (packetQueue_.isEmpty()) {
+                            if (!cond_.wait(&mutex_, waitTimeMs)) {
+                                if (stop_.loadAcquire()) break;
+                                continue;
+                            }
+                        }
+                        int currentBatchSize = batchSize;
+                        int count = 0;
+                        while (!packetQueue_.isEmpty() && count < currentBatchSize) {
+                            auto pair = packetQueue_.dequeue();
+                            batch.push_back(std::make_tuple(pair.first, std::move(pair.second)));
+                            count++;
+                        }
+        }
+        if (!batch.empty()) {
+            try {
+                processBatch(batch);
+            } catch (const std::exception& e) {
+                qWarning() << "Exception processing batch: " << e.what();
+                emit errorOccurred(QString("Batch processing error: %1").arg(e.what()));
+            }
+            batch.clear();
+        }
+    }
+    if (!batch.empty()) {
+        try {
+            processBatch(batch);
+            batch.clear();
+        } catch (const std::exception& e) {
+            qWarning() << "Exception processing final batch: " << e.what();
+            emit errorOccurred(QString("Final batch processing error: %1").arg(e.what()));
+        }
+    }
+}
+void DuckDBInsertThread::processBatch(std::vector<std::tuple<pcap_pkthdr, QByteArray>>& batch) {
+    if (!con || batch.empty()) return;
+    try {
+        if (!beginTransaction()) return;
+        duckdb::Appender appender(*con, "packets");
+        for (auto& [header, pkt_data] : batch) {
+            QByteArray packetType;
+            if (pkt_data.size() > 13) {
+                uint8_t eth_type_1 = static_cast<uint8_t>(pkt_data[12]);
+                uint8_t eth_type_2 = static_cast<uint8_t>(pkt_data[13]);
+                packetType.append(static_cast<char>(eth_type_1));
+                packetType.append(static_cast<char>(eth_type_2));
+                // Check for IPv4
+                if (eth_type_1 == 0x08 && eth_type_2 == 0x00 && pkt_data.size() > 23) {
+                    packetType.append(pkt_data[23]);
+                }
+                // Check for IPv6
+                else if (eth_type_1 == 0x86 && eth_type_2 == 0xDD && pkt_data.size() > 20) {
+                    packetType.append(pkt_data[20]);
+                }
+            } else if (pkt_data.size() > 12) {
+                packetType.append(pkt_data[12]);
+                packetType.append(static_cast<char>(0));
+            } else {
+                packetType.append(static_cast<char>(0));
+                packetType.append(static_cast<char>(0));
+            }
+            // Extract packet information
+            PacketInfo info = extractPacketInfo(pkt_data);
+
+            // Begin row insertion
+            appender.BeginRow();
+
+            // Basic fields
+            appender.Append<int64_t>(header.ts.tv_sec);
+            appender.Append<uint16_t>(header.caplen);
+            appender.Append<uint16_t>(header.len);
+
+            // Packet type
+            appendBlobToRow(appender, packetType.constData(), packetType.size());
+
+            // Ethernet fields
+            appendBlobToRow(appender, info.eth_src_mac.constData(), info.eth_src_mac.size());
+            appendBlobToRow(appender, info.eth_dst_mac.constData(), info.eth_dst_mac.size());
+            appendBlobToRow(appender, &info.eth_type, sizeof(info.eth_type));
+
+            // IP version
+            appendBlobToRow(appender, &info.ip_version, sizeof(info.ip_version));
+
+            // IPv4 fields
+            appendBlobToRow(appender, &info.ipv4_header_length, sizeof(info.ipv4_header_length));
+            appendBlobToRow(appender, &info.ipv4_tos, sizeof(info.ipv4_tos));
+            appendBlobToRow(appender, &info.ipv4_total_length, sizeof(info.ipv4_total_length));
+            appendBlobToRow(appender, &info.ipv4_id, sizeof(info.ipv4_id));
+            appendBlobToRow(appender, &info.ipv4_flags_fragment, sizeof(info.ipv4_flags_fragment));
+            appendBlobToRow(appender, &info.ipv4_ttl, sizeof(info.ipv4_ttl));
+            appendBlobToRow(appender, &info.ipv4_protocol, sizeof(info.ipv4_protocol));
+            appendBlobToRow(appender, &info.ipv4_checksum, sizeof(info.ipv4_checksum));
+            appendBlobToRow(appender, info.ipv4_src_ip.constData(), info.ipv4_src_ip.size());
+            appendBlobToRow(appender, info.ipv4_dst_ip.constData(), info.ipv4_dst_ip.size());
+
+            // IPv6 fields
+            appendBlobToRow(appender, &info.ipv6_traffic_class, sizeof(info.ipv6_traffic_class));
+            appendBlobToRow(appender, &info.ipv6_flow_label, sizeof(info.ipv6_flow_label));
+            appendBlobToRow(appender, &info.ipv6_payload_length, sizeof(info.ipv6_payload_length));
+            appendBlobToRow(appender, &info.ipv6_next_header, sizeof(info.ipv6_next_header));
+            appendBlobToRow(appender, &info.ipv6_hop_limit, sizeof(info.ipv6_hop_limit));
+            appendBlobToRow(appender, info.ipv6_src_ip.constData(), info.ipv6_src_ip.size());
+            appendBlobToRow(appender, info.ipv6_dst_ip.constData(), info.ipv6_dst_ip.size());
+
+            // TCP fields
+            appendBlobToRow(appender, &info.tcp_src_port, sizeof(info.tcp_src_port));
+            appendBlobToRow(appender, &info.tcp_dst_port, sizeof(info.tcp_dst_port));
+            appendBlobToRow(appender, &info.tcp_seq_num, sizeof(info.tcp_seq_num));
+            appendBlobToRow(appender, &info.tcp_ack_num, sizeof(info.tcp_ack_num));
+            appendBlobToRow(appender, &info.tcp_header_length, sizeof(info.tcp_header_length));
+            appendBlobToRow(appender, &info.tcp_flags, sizeof(info.tcp_flags));
+            appendBlobToRow(appender, &info.tcp_window_size, sizeof(info.tcp_window_size));
+            appendBlobToRow(appender, &info.tcp_checksum, sizeof(info.tcp_checksum));
+            appendBlobToRow(appender, &info.tcp_urgent_pointer, sizeof(info.tcp_urgent_pointer));
+
+            // UDP fields
+            appendBlobToRow(appender, &info.udp_src_port, sizeof(info.udp_src_port));
+            appendBlobToRow(appender, &info.udp_dst_port, sizeof(info.udp_dst_port));
+            appendBlobToRow(appender, &info.udp_length, sizeof(info.udp_length));
+            appendBlobToRow(appender, &info.udp_checksum, sizeof(info.udp_checksum));
+
+            // ICMP fields
+            appendBlobToRow(appender, &info.icmp_type, sizeof(info.icmp_type));
+            appendBlobToRow(appender, &info.icmp_code, sizeof(info.icmp_code));
+            appendBlobToRow(appender, &info.icmp_checksum, sizeof(info.icmp_checksum));
+            appendBlobToRow(appender, &info.icmp_rest_of_header, sizeof(info.icmp_rest_of_header));
+
+            // ARP fields
+            appendBlobToRow(appender, &info.arp_hw_type, sizeof(info.arp_hw_type));
+            appendBlobToRow(appender, &info.arp_protocol_type, sizeof(info.arp_protocol_type));
+            appendBlobToRow(appender, &info.arp_hw_size, sizeof(info.arp_hw_size));
+            appendBlobToRow(appender, &info.arp_protocol_size, sizeof(info.arp_protocol_size));
+            appendBlobToRow(appender, &info.arp_opcode, sizeof(info.arp_opcode));
+            appendBlobToRow(appender, info.arp_src_mac.constData(), info.arp_src_mac.size());
+            appendBlobToRow(appender, info.arp_src_ip.constData(), info.arp_src_ip.size());
+            appendBlobToRow(appender, info.arp_dst_mac.constData(), info.arp_dst_mac.size());
+            appendBlobToRow(appender, info.arp_dst_ip.constData(), info.arp_dst_ip.size());
+
+            // Full packet data
+            appendBlobToRow(appender, pkt_data.constData(), pkt_data.size());
+            appender.EndRow();
+            processedPackets.fetchAndAddRelaxed(1);
+        }
+        appender.Flush();
+        appender.Close();
+        if (commitTransaction()) {
+            emit insertCommited(batch.size());
+        }
+    } catch (const std::exception& e) {
+        qWarning() << "Exception in database operation: " << e.what();
+        rollbackTransaction();
+        emit errorOccurred(QString("Database error: %1").arg(e.what()));
+    }
+}
+
+void DuckDBInsertThread::appendBlobToRow(duckdb::Appender& appender, const void* data, size_t size) {
+    appender.Append(duckdb::Value::BLOB(
+        reinterpret_cast<duckdb::const_data_ptr_t>(data), size));
+}
+
 void DuckDBInsertThread::parseTCP(const QByteArray& pkt_data, int offset, PacketInfo& info) {
+    if (pkt_data.size() < offset + 20) return;
     info.tcp_src_port = (static_cast<uint8_t>(pkt_data[offset]) << 8) |
                       static_cast<uint8_t>(pkt_data[offset + 1]);
     info.tcp_dst_port = (static_cast<uint8_t>(pkt_data[offset + 2]) << 8) |
                       static_cast<uint8_t>(pkt_data[offset + 3]);
-
     info.tcp_seq_num = (static_cast<uint8_t>(pkt_data[offset + 4]) << 24) |
                      (static_cast<uint8_t>(pkt_data[offset + 5]) << 16) |
                      (static_cast<uint8_t>(pkt_data[offset + 6]) << 8) |
                      static_cast<uint8_t>(pkt_data[offset + 7]);
-
     info.tcp_ack_num = (static_cast<uint8_t>(pkt_data[offset + 8]) << 24) |
                      (static_cast<uint8_t>(pkt_data[offset + 9]) << 16) |
                      (static_cast<uint8_t>(pkt_data[offset + 10]) << 8) |
                      static_cast<uint8_t>(pkt_data[offset + 11]);
-
-    info.tcp_header_length = ((static_cast<uint8_t>(pkt_data[offset + 12]) >> 4) & 0x0F) * 4;  // в байтах
+    info.tcp_header_length = ((static_cast<uint8_t>(pkt_data[offset + 12]) >> 4) & 0x0F) * 4;  // in bytes
     info.tcp_flags = (static_cast<uint8_t>(pkt_data[offset + 13]));
-
     info.tcp_window_size = (static_cast<uint8_t>(pkt_data[offset + 14]) << 8) |
                          static_cast<uint8_t>(pkt_data[offset + 15]);
-
     info.tcp_checksum = (static_cast<uint8_t>(pkt_data[offset + 16]) << 8) |
                       static_cast<uint8_t>(pkt_data[offset + 17]);
-
     info.tcp_urgent_pointer = (static_cast<uint8_t>(pkt_data[offset + 18]) << 8) |
                             static_cast<uint8_t>(pkt_data[offset + 19]);
 }
 
 void DuckDBInsertThread::parseUDP(const QByteArray& pkt_data, int offset, PacketInfo& info) {
+    if (pkt_data.size() < offset + 8) return;
     info.udp_src_port = (static_cast<uint8_t>(pkt_data[offset]) << 8) |
                       static_cast<uint8_t>(pkt_data[offset + 1]);
-
     info.udp_dst_port = (static_cast<uint8_t>(pkt_data[offset + 2]) << 8) |
                       static_cast<uint8_t>(pkt_data[offset + 3]);
-
     info.udp_length = (static_cast<uint8_t>(pkt_data[offset + 4]) << 8) |
                     static_cast<uint8_t>(pkt_data[offset + 5]);
-
     info.udp_checksum = (static_cast<uint8_t>(pkt_data[offset + 6]) << 8) |
                       static_cast<uint8_t>(pkt_data[offset + 7]);
 }
 
 void DuckDBInsertThread::parseICMP(const QByteArray& pkt_data, int offset, PacketInfo& info) {
+    if (pkt_data.size() < offset + 8) return;
     info.icmp_type = static_cast<uint8_t>(pkt_data[offset]);
     info.icmp_code = static_cast<uint8_t>(pkt_data[offset + 1]);
-
     info.icmp_checksum = (static_cast<uint8_t>(pkt_data[offset + 2]) << 8) |
                        static_cast<uint8_t>(pkt_data[offset + 3]);
-
-    // Оставшиеся 4 байта заголовка (зависит от типа)
     info.icmp_rest_of_header = (static_cast<uint8_t>(pkt_data[offset + 4]) << 24) |
                              (static_cast<uint8_t>(pkt_data[offset + 5]) << 16) |
                              (static_cast<uint8_t>(pkt_data[offset + 6]) << 8) |
@@ -381,12 +377,12 @@ DuckDBInsertThread::PacketInfo DuckDBInsertThread::extractPacketInfo(const QByte
 
     int offset = 14;
     if (info.eth_type == 0x0800) {  // IPv4
-        if (pkt_data.size() < offset + 20) {  // Минимальный размер IPv4 заголовка
+        if (pkt_data.size() < offset + 20) {  // Minimum IPv4 header size
             return info;
         }
 
         info.ip_version = (static_cast<uint8_t>(pkt_data[offset]) >> 4) & 0x0F;
-        info.ipv4_header_length = (static_cast<uint8_t>(pkt_data[offset]) & 0x0F) * 4;  // в байтах
+        info.ipv4_header_length = (static_cast<uint8_t>(pkt_data[offset]) & 0x0F) * 4;  // in bytes
         info.ipv4_tos = static_cast<uint8_t>(pkt_data[offset + 1]);
         info.ipv4_total_length = (static_cast<uint8_t>(pkt_data[offset + 2]) << 8) |
                                  static_cast<uint8_t>(pkt_data[offset + 3]);
@@ -468,7 +464,6 @@ DuckDBInsertThread::PacketInfo DuckDBInsertThread::extractPacketInfo(const QByte
             info.arp_dst_ip = pkt_data.mid(offset + 24, 4);
         }
     }
-
     return info;
 }
 

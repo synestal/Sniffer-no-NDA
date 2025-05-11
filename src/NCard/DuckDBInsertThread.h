@@ -12,10 +12,11 @@
 #include <QString>
 #include <QDebug>
 #include <QDir>
+#include <QAtomicInt>
+#include <QSemaphore>
 
 #include <iostream>
 #include <fstream>
-
 
 #include "pcap.h"
 #include "packages/service_pcap/misc.h"
@@ -28,67 +29,21 @@
 class DuckDBInsertThread : public QThread {
     Q_OBJECT
 public:
-    DuckDBInsertThread(std::string _filename, QObject* parent = nullptr)
-        : QThread(parent), db(nullptr), con(nullptr), filename(_filename), stop_(false) {
-        try {
-            db = std::make_shared<duckdb::DuckDB>(filename); // Файл БД
-            if (!db) throw std::runtime_error("Failed to create database");
-            con = std::make_shared<duckdb::Connection>(*db);
-            if (!con) throw std::runtime_error("Failed to create connection");
-            ensureTableExists();
-            con->Query("PRAGMA memory_limit='100MB';");
-        } catch (const std::exception &e) {
-            con.reset();
-            db.reset();
-            qDebug() << "Rollback failed:" << e.what();
-        }
-    }
-    ~DuckDBInsertThread() {
-        con->Query("ROLLBACK;");
-        con.reset();
-        db.reset();
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        stop();
-    }
-    void addPacket(const struct pcap_pkthdr header, const QByteArray data) {
-        QMutexLocker locker(&mutex_);
-        if (packetQueue_.size() >= maxQueueSize) {
-            packetQueue_.dequeue();
-        }
-        packetQueue_.enqueue({ header, data });
-        cond_.wakeOne();
-    }
-    void stop() {
-        {
-            QMutexLocker locker(&mutex_);
-            stop_ = true;
-        }
-        cond_.wakeOne();
-        wait();
-    }
-
-    int64_t getMaxId() {
-        try {
-            auto result = con->Query("SELECT MAX(rowid) FROM packets;");
-            if (!result->HasError() && result->RowCount() > 0) {
-                return result->GetValue<int64_t>(0, 0);
-            }
-            return -1;
-        } catch (const std::exception& e) {
-            qWarning() << "Failed to get max id: " << e.what();
-            return -1;
-        }
-    }
-
+    DuckDBInsertThread(std::string _filename, QObject* parent = nullptr);
+    ~DuckDBInsertThread() override;
+    void addPacket(const struct pcap_pkthdr header, const QByteArray data);
+    void stop();
+    int64_t getMaxId();
     static constexpr int maxQueueSize = 10000;
-    std::shared_ptr<duckdb::Connection> getConnection() const {
-        return con;
-    }
+    std::shared_ptr<duckdb::Connection> getConnection() const;
+    void adjustBatchSize(int newSize);
 
 protected:
-    void run();
+    void run() override;
+
 signals:
     void insertCommited(int);
+    void errorOccurred(const QString& errorMessage);
 
 private:
     struct PacketInfo {
@@ -155,21 +110,28 @@ private:
         QByteArray arp_dst_mac;
         QByteArray arp_dst_ip;
     };
-
-    // Функция для извлечения всей информации из пакета
     PacketInfo extractPacketInfo(const QByteArray&);
     void parseTCP(const QByteArray&, int, PacketInfo&);
     void parseUDP(const QByteArray&, int, PacketInfo&);
     void parseICMP(const QByteArray&, int, PacketInfo&);
+    bool initializeDatabase();
     void ensureTableExists();
-
+    void appendBlobToRow(duckdb::Appender& appender, const void* data, size_t size);
+    void processBatch(std::vector<std::tuple<pcap_pkthdr, QByteArray>>& batch);
+    bool beginTransaction();
+    bool commitTransaction();
+    void rollbackTransaction();
     std::shared_ptr<duckdb::DuckDB> db;
     std::shared_ptr<duckdb::Connection> con;
     QQueue<QPair<pcap_pkthdr, QByteArray>> packetQueue_;
     std::string filename;
     QMutex mutex_;
     QWaitCondition cond_;
-    bool stop_;
+    QAtomicInt stop_;
+    int batchSize;
+    int waitTimeMs;
+    bool transactionActive;
+    QAtomicInt droppedPackets;
+    QAtomicInt processedPackets;
 };
-
 #endif // DUCKDBINSERTTHREAD_H

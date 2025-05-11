@@ -1,20 +1,6 @@
 #include "graphchoosing.h"
 #include "ui_graphchoosing.h"
 
-/*
- * Версия в разработке - синтакис, логика и поведение операторов, указателей нестабильны
- *
- * To do: переопределить класс окна и графика через кастомный
- *        переделать операцию Repaint
- *
-*/
-
-
-
-
-/*
- * Class GraphBackend
-*/
 
 GraphChoosing::GraphChoosing(QWidget *parent) : QDialog(parent), ui(new Ui::GraphChoosing) {
     ui->setupUi(this);
