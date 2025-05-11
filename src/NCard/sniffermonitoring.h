@@ -24,8 +24,8 @@ class SnifferMonitoring : public QThread {
     Q_OBJECT
 
 public:
-    explicit SnifferMonitoring(QString device, QObject *parent = nullptr)
-        : QThread(parent), deviceName(device)
+    explicit SnifferMonitoring(QString device, std::string _filename, QObject *parent = nullptr)
+        : QThread(parent), filename(_filename), deviceName(device)
     {
     }
     ~SnifferMonitoring() {
@@ -42,8 +42,11 @@ public:
         }
     }
 
-    int count = 0;
+    void setFilename (std::string _filename) {
+        filename = _filename;
+    }
 
+    int count = 0;
 protected:
     void run() override {
         insertThread->start();
@@ -68,14 +71,14 @@ protected:
         }
         pcap_close(handle);
     }
-
 signals:
     void packetCapturedUchar(int, std::shared_ptr<duckdb::Connection>);
     void packetIsReadyToBeSentToDB(const struct pcap_pkthdr, const QByteArray);
 
 private:
+    std::string filename;
     static void packetHandler(u_char *param, const struct pcap_pkthdr *header, const u_char *pkt_data);
-    DuckDBInsertThread* insertThread = new DuckDBInsertThread;
+    DuckDBInsertThread* insertThread = new DuckDBInsertThread(filename);
     DuckDBMaintenanceThread* maintenanceThread = new DuckDBMaintenanceThread(insertThread->getConnection());
     QString deviceName;
     pcap_t *handle = nullptr;

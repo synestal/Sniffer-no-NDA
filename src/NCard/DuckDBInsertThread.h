@@ -28,23 +28,26 @@
 class DuckDBInsertThread : public QThread {
     Q_OBJECT
 public:
-    explicit DuckDBInsertThread(QObject* parent = nullptr)
-        : QThread(parent), db(nullptr), con(nullptr), stop_(false) {
+    DuckDBInsertThread(std::string _filename, QObject* parent = nullptr)
+        : QThread(parent), db(nullptr), con(nullptr), filename(_filename), stop_(false) {
         try {
-            std::string time = QDateTime::currentDateTime().toLocalTime().toString("yyyy,MM,dd,hh,mm,ss").QString::toStdString();
-            std::string filename = ",packets.db";
-
             db = std::make_shared<duckdb::DuckDB>(filename); // Файл БД
+            if (!db) throw std::runtime_error("Failed to create database");
             con = std::make_shared<duckdb::Connection>(*db);
+            if (!con) throw std::runtime_error("Failed to create connection");
             ensureTableExists();
             con->Query("PRAGMA memory_limit='100MB';");
         } catch (const std::exception &e) {
+            con.reset();
+            db.reset();
             qDebug() << "Rollback failed:" << e.what();
         }
     }
     ~DuckDBInsertThread() {
+        con->Query("ROLLBACK;");
         con.reset();
         db.reset();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
         stop();
     }
     void addPacket(const struct pcap_pkthdr header, const QByteArray data) {
@@ -163,6 +166,7 @@ private:
     std::shared_ptr<duckdb::DuckDB> db;
     std::shared_ptr<duckdb::Connection> con;
     QQueue<QPair<pcap_pkthdr, QByteArray>> packetQueue_;
+    std::string filename;
     QMutex mutex_;
     QWaitCondition cond_;
     bool stop_;

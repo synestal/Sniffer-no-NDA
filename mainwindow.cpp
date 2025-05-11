@@ -13,6 +13,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->setupUi(this);
 
     connect(ui->comboBox_7, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список устройства
+        flagFilenameChanged = false;
         switch(index) {
         case 1:
             AuthTable(); break;
@@ -41,12 +42,21 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
         }
         ui->comboBox->setCurrentIndex(0);
     });
-    connect(ui->comboBox_6, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список дополнительно
+    connect(ui->comboBox_6, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список цветов строк
         switch(index) {
         case 1:
             changeRowsColour(); break;
         }
         ui->comboBox_6->setCurrentIndex(0);
+    });
+    connect(ui->comboBox_3, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список файлового дескриптора
+        switch(index) {
+        case 1:
+            openDB(); break;
+        case 2:
+            saveDB(); break;
+        }
+        ui->comboBox_3->setCurrentIndex(0);
     });
 
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::AnalysisButtonClicked);
@@ -56,6 +66,34 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     updateTimer = new QTimer(this);
     connect(updateTimer, &QTimer::timeout, this, &MainWindow::updateByTimer);
     updateTimer->start(200);
+}
+
+void MainWindow::openDB() {
+    QString fileName = QFileDialog::getOpenFileName(
+            this,
+            tr("Open Database File"),
+            QDir::homePath(),
+            tr("Database Files (*.db)")
+        );
+        if (!fileName.isEmpty()) {
+            qDebug() << "Selected database file:" << fileName;
+            filename = fileName.toStdString();
+            flagFilenameChanged = true;
+            AuthTable();
+            // Например, открыть соединение с базой данных:
+            // QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+            // db.setDatabaseName(fileName);
+            // if (!db.open()) {
+            //     qDebug() << "Error opening database:" << db.lastError().text();
+            // }
+        } else {
+            qDebug() << "No file selected";
+        }
+}
+
+void MainWindow::saveDB() {
+    StopSniffing();
+    flagFilenameChanged = false;
 }
 
 void MainWindow::SettingsButtonClicked() {
@@ -230,9 +268,54 @@ void MainWindow::AuthTable() {
     tempWindow->show();
 }
 
+QString MainWindow::processBlob(duckdb::Value packet_type_str, QString param) {
+    QString bytes = "";
+    try {
+        auto blob = packet_type_str.GetValueUnsafe<std::string>();
+        if (param == "data") {
+            bytes = "Тело " + QString::number(blob.size()) + " байт:\n";
+        }
+        int position = -1;
+        for (char c : blob) {
+            position++;
+
+            if (param == "data") {
+                bytes += QString::number(static_cast<uint8_t>(c), 16).toUpper().rightJustified(2, '0');;
+            } else {
+                bytes += QString::number(static_cast<uint8_t>(c));
+            }
+
+            if (param == "time" && position != blob.size() - 1) {
+                bytes += ".";
+            }
+            if (param == "data" && position != blob.size() - 1) {
+                bytes += " ";
+            }
+            if (param == "data" && position != blob.size() - 1  && position != 0 && position % 16 == 0) {
+                bytes += "\n";
+            }
+        }
+        if (param == "data") {
+            if(position == -1) {
+                bytes = "В пакете нет тела";
+            }
+            //qDebug() << bytes;
+        }
+    } catch (const std::exception& e) {
+        qDebug() << "Error processBlob:" << QString::fromStdString(packet_type_str.GetValueUnsafe<std::string>()) << e.what();
+    }
+    return bytes;
+}
+
 void MainWindow::StartSniffing(QString device) {
     StopSniffing();
-    sniffer = std::make_unique<SnifferMonitoring>(device, this);
+    if (!flagFilenameChanged) {
+        std::string time = QDateTime::currentDateTime().toLocalTime().toString("yyyy-MM-dd-hh-mm-ss").QString::toStdString();
+        QString copy = device;
+        filename = copy.replace(QRegularExpression("[^a-zA-Z0-9]"), "-").QString::toStdString() + time + "-packets.db";
+    }
+    qDebug() << QString::fromStdString(filename);
+        sniffer = std::make_unique<SnifferMonitoring>(device, filename, this);
     if (!model) {
         model = new PacketModel(this);
     }
@@ -328,17 +411,20 @@ void MainWindow::handlePacketCapturedUchar(int num, std::shared_ptr<duckdb::Conn
 }
 
 void MainWindow::ResumeSniffing() {
-    if (sniffer == nullptr) {
+    if (sniffer == nullptr && currentDevice == "") {
         qDebug() << "Attempt to resume null sniffer";
         return;
+    } else if (sniffer == nullptr) {
+        sniffer = std::make_unique<SnifferMonitoring>(currentDevice, filename, this);
     }
     sniffer->start();
 }
 
 void MainWindow::StopSniffing() {
     if (sniffer != nullptr) {
-        sniffer->terminate();
+        sniffer->stopSniffing();
     }
+    sniffer = nullptr;
     currentDevice = "";
 }
 
@@ -346,6 +432,7 @@ void MainWindow::PauseSniffing() {
     if (sniffer != nullptr) {
         sniffer->stopSniffing();
     }
+    sniffer = nullptr;
 }
 
 void MainWindow::onRowClicked(const QModelIndex &index) {
