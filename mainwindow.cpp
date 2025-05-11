@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "qlabel.h"
 #include "ui_mainwindow.h"
 /*
  *  Альфа-версия (стабильная)
@@ -8,6 +9,7 @@
  *
 */
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow) {
+    setWhiteTheme();
     ui->setupUi(this);
 
     connect(ui->comboBox_7, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список устройства
@@ -23,12 +25,158 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
         }
         ui->comboBox_7->setCurrentIndex(0);
     });
+    connect(ui->comboBox_8, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список тем
+        switch(index) {
+        case 1:
+            setWhiteTheme(); break;
+        case 2:
+            setDarkTheme(); break;
+        }
+        ui->comboBox_8->setCurrentIndex(0);
+    });
+    connect(ui->comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список дополнительно
+        switch(index) {
+        case 1:
+            aboutApp(); break;
+        }
+        ui->comboBox->setCurrentIndex(0);
+    });
+    connect(ui->comboBox_6, QOverload<int>::of(&QComboBox::currentIndexChanged), this, [this](int index) { // Выпадающий список дополнительно
+        switch(index) {
+        case 1:
+            changeRowsColour(); break;
+        }
+        ui->comboBox_6->setCurrentIndex(0);
+    });
 
     connect(ui->pushButton_2, &QPushButton::clicked, this, &MainWindow::AnalysisButtonClicked);
+    connect(ui->pushButton_7, &QPushButton::clicked, this, &MainWindow::TutorialButtonClicked);
+    connect(ui->pushButton_6, &QPushButton::clicked, this, &MainWindow::SettingsButtonClicked);
     connect(ui->ResoursesButton, &QPushButton::clicked, this, &MainWindow::ResoursesButtonClicked);
     updateTimer = new QTimer(this);
     connect(updateTimer, &QTimer::timeout, this, &MainWindow::updateByTimer);
     updateTimer->start(200);
+}
+
+void MainWindow::SettingsButtonClicked() {
+    auto secondWindow = new QWidget(nullptr);
+    secondWindow->setWindowTitle("Параметры программы");
+    secondWindow->resize(300, 200);
+    secondWindow->setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint);
+    QVBoxLayout *mainLayout = new QVBoxLayout(secondWindow);
+    QHBoxLayout *inputLayout = new QHBoxLayout();
+    QLineEdit *memoryLimitInput = new QLineEdit(secondWindow);
+    memoryLimitInput->setPlaceholderText("Введите лимит памяти (MB)");
+    QPushButton *applyButton = new QPushButton("Применить", secondWindow);
+    inputLayout->addWidget(memoryLimitInput);
+    inputLayout->addWidget(applyButton);
+    mainLayout->addLayout(inputLayout);
+    connect(applyButton, &QPushButton::clicked, this, [=]() {
+        bool ok;
+        int memoryMB = memoryLimitInput->text().toInt(&ok);
+        if (!ok || memoryMB <= 10) {
+            QMessageBox::warning(secondWindow,
+                               "Ошибка",
+                               "Значение должно быть числом больше 10 MB");
+            return;
+        }
+        std::ostringstream oss;
+        oss << "PRAGMA memory_limit='" << memoryMB << "MB';";
+        std::string query = oss.str();
+        if (connection) {
+            connection->Query(query);
+            QMessageBox::information(secondWindow,
+                                   "Успех",
+                                   "Лимит памяти успешно изменен");
+        } else {
+            QMessageBox::critical(secondWindow,
+                                "Ошибка",
+                                "Нет подключения к базе данных");
+        }
+    });
+    secondWindow->show();
+}
+
+void MainWindow::changeRowsColour() {
+    auto secondWindow = new QWidget(nullptr);
+    secondWindow->setWindowTitle("Смена цвета");
+    secondWindow->resize(300, 200);
+    secondWindow->setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint);
+    QVBoxLayout *layout = new QVBoxLayout(secondWindow);
+    QComboBox *protocolCombo = new QComboBox(secondWindow);
+    protocolCombo->addItems({
+        "IPv4 - TCP",
+        "IPv4 - UDP",
+        "IPv4 - ICMP",
+        "IPv4 - IGMP",
+        "IPv4 - Unknown",
+        "IPv6 - TCP",
+        "IPv6 - UDP",
+        "IPv6 - ICMP",
+        "IPv6 - IGMP",
+        "IPv6 - Unknown",
+        "ARP",
+        "RARP",
+        "IPX",
+        "MPLS Unicast",
+        "MPLS Multicast",
+        "PPPoE Discovery",
+        "PPPoE Session"
+    });
+    QPushButton *colorButton = new QPushButton("Выбрать цвет", secondWindow);
+    connect(colorButton, &QPushButton::clicked, this, [=]() {
+        QColorDialog *colorDialog = new QColorDialog(secondWindow);
+        colorDialog->setOption(QColorDialog::DontUseNativeDialog);
+        colorDialog->setCurrentColor(Qt::red);
+
+        connect(colorDialog, &QColorDialog::colorSelected, this, [=](const QColor &color) {
+            if (model) { model->setColor(protocolCombo->currentText(), color); }
+        });
+
+        colorDialog->show();
+    });
+    layout->addWidget(new QLabel("Выберите протокол:"));
+    layout->addWidget(protocolCombo);
+    layout->addSpacing(20);
+    layout->addWidget(colorButton);
+    secondWindow->show();
+}
+
+void MainWindow::TutorialButtonClicked() {
+    QMessageBox::information(this, "Руководство", "Руководство по эксплуатации можно найти на сайте https://www.winpcap.org/install/\nДля получения дополнительной информации, обатитесь по почтовому адресу kostryukov.duxa@gmail.com");
+}
+
+void MainWindow::aboutApp() {
+    QMessageBox::information(this, "О программе", "Создатель: Кострюков Андрей\nEmail: kostryukov.duxa@gmail.com\nГод: 2025");
+}
+
+void MainWindow::setWhiteTheme() {
+    QPalette lightPalette;
+    lightPalette.setColor(QPalette::Window, Qt::white);
+    lightPalette.setColor(QPalette::WindowText, Qt::black);
+    lightPalette.setColor(QPalette::Base, Qt::white);
+    lightPalette.setColor(QPalette::AlternateBase, QColor(240, 240, 240));
+    lightPalette.setColor(QPalette::ToolTipBase, Qt::black);
+    lightPalette.setColor(QPalette::ToolTipText, Qt::black);
+    lightPalette.setColor(QPalette::Text, Qt::black);
+    lightPalette.setColor(QPalette::Button, QColor(240, 240, 240));
+    lightPalette.setColor(QPalette::ButtonText, Qt::black);
+    qApp->setStyle("Fusion"); // Установка стиля Fusion
+    qApp->setPalette(lightPalette); // Применение светлой палитры
+}
+void MainWindow::setDarkTheme() {
+    QPalette darkPalette;
+    darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::WindowText, Qt::white);
+    darkPalette.setColor(QPalette::Base, QColor(25, 25, 25));
+    darkPalette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::ToolTipBase, Qt::white);
+    darkPalette.setColor(QPalette::ToolTipText, Qt::white);
+    darkPalette.setColor(QPalette::Text, Qt::white);
+    darkPalette.setColor(QPalette::Button, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::ButtonText, Qt::white);
+    qApp->setStyle("Fusion"); // Установка стиля Fusion
+    qApp->setPalette(darkPalette); // Применение темной палитры
 }
 
 void MainWindow::AuthTable() {
@@ -92,7 +240,12 @@ void MainWindow::StartSniffing(QString device) {
     model->setPacketStorage(TableStorage);
     ui->tableView_2->setModel(model);
     connect(sniffer.get(), &SnifferMonitoring::packetCapturedUchar, this, &MainWindow::handlePacketCapturedUchar);
+    try {
     sniffer->start();
+    }
+    catch (const std::exception& e) {
+                   qDebug() << "Error processing row:" << e.what();
+               }
     currentDevice = device;
     ui->verticalScrollBar->setRange(0, INT_MAX);
     ui->verticalScrollBar->setValue(INT_MAX);

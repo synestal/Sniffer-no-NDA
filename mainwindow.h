@@ -3,6 +3,7 @@
 
 
 #include <QMainWindow>
+#include <QPalette>
 #include <QDialog>
 #include <QThread>
 #include <QStringListModel>
@@ -13,6 +14,7 @@
 #include <QList>
 #include <QStandardItem>
 #include <QApplication>
+#include <QColor>
 
 
 #include <iostream>
@@ -44,7 +46,26 @@ QT_END_NAMESPACE
 class PacketModel : public QAbstractTableModel {
     Q_OBJECT
 public:
-    PacketModel(QObject *parent = nullptr) : QAbstractTableModel(parent) {}
+    PacketModel(QObject *parent = nullptr) : QAbstractTableModel(parent) {
+        ipv4TcpColor = QColor(0, 255, 0);
+        ipv4UdpColor = QColor(50, 150, 50);
+        ipv4IcmpColor = QColor(100, 255, 100);
+        ipv4IgmpColor = QColor(200, 255, 200);
+        ipv4UnknownColor = QColor(220, 255, 220);
+        ipv6TcpColor = QColor(255, 0, 0);
+        ipv6UdpColor = QColor(150, 50, 50);
+        ipv6IcmpColor = QColor(255, 100, 100);
+        ipv6IgmpColor = QColor(255, 200, 200);
+        ipv6UnknownColor = QColor(255, 220, 220);
+        arpColor = QColor(0, 0, 255);
+        rarpColor = QColor(50, 50, 255);
+        ipxColor = QColor(100, 100, 255);
+        mplsUnicastColor = QColor(150, 150, 255);
+        mplsMulticastColor = QColor(200, 200, 255);
+        pppoeDiscoveryColor = QColor(100, 100, 100);
+        pppoeSessionColor = QColor(150, 150, 150);
+        defaultColor = Qt::darkGreen;
+    }
 
     void setPacketStorage(const std::vector<packet_info> &storage) {
         PacketsStorage = &storage;
@@ -61,6 +82,46 @@ public:
         endResetModel();
     }
 
+    void setColor(QString protocol, QColor color) {
+        if (protocol == "IPv4 - TCP") {
+            ipv4TcpColor = color;
+        } else if (protocol == "IPv4 - UDP") {
+            ipv4UdpColor = color;
+        } else if (protocol == "IPv4 - ICMP") {
+            ipv4IcmpColor = color;
+        } else if (protocol == "IPv4 - IGMP") {
+            ipv4IgmpColor = color;
+        } else if (protocol == "IPv4 - Unknown") {
+            ipv4UnknownColor = color;
+        } else if (protocol == "IPv6 - TCP") {
+            ipv6TcpColor = color;
+        } else if (protocol == "IPv6 - UDP") {
+            ipv6UdpColor = color;
+        } else if (protocol == "IPv6 - ICMP") {
+            ipv6IcmpColor = color;
+        } else if (protocol == "IPv6 - IGMP") {
+            ipv6IgmpColor = color;
+        } else if (protocol == "IPv6 - Unknown") {
+            ipv6UnknownColor = color;
+        } else if (protocol == "ARP") {
+            arpColor = color;
+        } else if (protocol == "RARP") {
+            rarpColor = color;
+        } else if (protocol == "IPX") {
+            ipxColor = color;
+        } else if (protocol == "MPLS Unicast") {
+            mplsUnicastColor = color;
+        } else if (protocol == "MPLS Multicast") {
+            mplsMulticastColor = color;
+        } else if (protocol == "PPPoE Discovery") {
+            pppoeDiscoveryColor = color;
+        } else if (protocol == "PPPoE Session") {
+            pppoeSessionColor = color;
+        } else {
+            defaultColor = color;
+        }
+    }
+
     int rowCount(const QModelIndex &parent = QModelIndex()) const override {
         return PacketsStorage ? (endRow - startRow) : 0;
     }
@@ -68,6 +129,25 @@ public:
     int columnCount(const QModelIndex &parent = QModelIndex()) const override {
         return 6;
     }
+
+    QColor ipv4TcpColor;
+    QColor ipv4UdpColor;
+    QColor ipv4IcmpColor;
+    QColor ipv4IgmpColor;
+    QColor ipv4UnknownColor;
+    QColor ipv6TcpColor;
+    QColor ipv6UdpColor;
+    QColor ipv6IcmpColor;
+    QColor ipv6IgmpColor;
+    QColor ipv6UnknownColor;
+    QColor arpColor;
+    QColor rarpColor;
+    QColor ipxColor;
+    QColor mplsUnicastColor;
+    QColor mplsMulticastColor;
+    QColor pppoeDiscoveryColor;
+    QColor pppoeSessionColor;
+    QColor defaultColor;
 
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override {
         if (!index.isValid() || !PacketsStorage) {
@@ -90,42 +170,42 @@ public:
                     default: return QVariant();
                 }
             } else if (role == Qt::BackgroundRole) {
-                if (packet.packetType ==        "IPv4 - TCP") {
-                    return QBrush(QColor(0, 255, 0));
+                if (packet.packetType == "IPv4 - TCP") {
+                    return QBrush(ipv4TcpColor);
                 } else if (packet.packetType == "IPv4 - UDP") {
-                    return QBrush(QColor(50, 150, 50));
+                    return QBrush(ipv4UdpColor);
                 } else if (packet.packetType == "IPv4 - ICMP") {
-                    return QBrush(QColor(100, 255, 100));
+                    return QBrush(ipv4IcmpColor);
                 } else if (packet.packetType == "IPv4 - IGMP") {
-                    return QBrush(QColor(200, 255, 200));
+                    return QBrush(ipv4IgmpColor);
                 } else if (packet.packetType == "IPv4 - Unknown") { // Not done
-                    return QBrush(QColor(220, 255, 220));
+                    return QBrush(ipv4UnknownColor);
                 } else if (packet.packetType == "IPv6 - TCP") {
-                    return QBrush(QColor(255, 0, 0));
+                    return QBrush(ipv6TcpColor);
                 } else if (packet.packetType == "IPv6 - UDP") {
-                    return QBrush(QColor(150, 50, 50));
+                    return QBrush(ipv6UdpColor);
                 } else if (packet.packetType == "IPv6 - ICMP") {
-                    return QBrush(QColor(255, 100, 100));
+                    return QBrush(ipv6IcmpColor);
                 } else if (packet.packetType == "IPv6 - IGMP") {
-                    return QBrush(QColor(255, 200, 200));
+                    return QBrush(ipv6IgmpColor);
                 } else if (packet.packetType == "IPv6 - Unknown") { // Not done
-                    return QBrush(QColor(255, 220, 220));
+                    return QBrush(ipv6UnknownColor);
                 } else if (packet.packetType == "ARP") {
-                    return QBrush(QColor(0, 0, 255));
+                    return QBrush(arpColor);
                 } else if (packet.packetType == "RARP") {
-                    return QBrush(QColor(50, 50, 255));
+                    return QBrush(rarpColor);
                 } else if (packet.packetType == "IPX") {
-                    return QBrush(QColor(100, 100, 255));
+                    return QBrush(ipxColor);
                 } else if (packet.packetType == "MPLS Unicast") {
-                    return QBrush(QColor(150, 150, 255));
+                    return QBrush(mplsUnicastColor);
                 } else if (packet.packetType == "MPLS Multicast") {
-                    return QBrush(QColor(200, 200, 255));
+                    return QBrush(mplsMulticastColor);
                 } else if (packet.packetType == "PPPoE Discovery") {
-                    return QBrush(QColor(100, 100, 100));
+                    return QBrush(pppoeDiscoveryColor);
                 } else if (packet.packetType == "PPPoE Session") {
-                    return QBrush(QColor(150, 150, 150));
+                    return QBrush(pppoeSessionColor);
                 } else {
-                    return QBrush(Qt::darkGreen);
+                    return QBrush(defaultColor);
                 }
             }
         return QVariant();
@@ -229,6 +309,13 @@ private:
     int currScrollValue = 0;        // Положение ползунка - unstable
 
     QTimer *updateTimer;
+
+    void setDarkTheme();
+    void setWhiteTheme();
+    void aboutApp();
+    void TutorialButtonClicked();
+    void changeRowsColour();
+    void SettingsButtonClicked();
 
     // Сниффинг
     std::unique_ptr<SnifferMonitoring> sniffer = nullptr;

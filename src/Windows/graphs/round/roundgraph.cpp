@@ -31,7 +31,7 @@ void RoundGraph::Repaint() {
     chartView->setUpdatesEnabled(false);
     series->clear();
     for (const auto& item : *ObjectsCount) {
-        series->append(item.first, item.second);
+        if (item.second != 0) {series->append(item.first, item.second);}
     }
     for (auto slice : series->slices()) {
         slice->setLabelVisible(true);

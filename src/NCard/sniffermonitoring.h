@@ -35,11 +35,12 @@ public:
         if (handle) {
             pcap_breakloop(handle);
             maintenanceThread->stop();
-            maintenanceThread->deleteLater();
+            delete maintenanceThread;
             insertThread->stop();
-            insertThread->deleteLater();
+            delete insertThread;
             wait();
-        }              }
+        }
+    }
 
     int count = 0;
 

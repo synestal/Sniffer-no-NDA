@@ -8,6 +8,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++17console
 CONFIG -= app_bundle
 SOURCES += \
+    src/NCard/DuckDBInsertThread.cpp \
     src/Windows/graphs/bar/bar.cpp \
     src/Windows/graphs/graphchoosing.cpp \
     main.cpp \
