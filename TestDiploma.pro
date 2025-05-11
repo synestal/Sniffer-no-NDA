@@ -8,14 +8,15 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 CONFIG += c++17console
 CONFIG -= app_bundle
 SOURCES += \
-    src/NCard/functionstodeterminepacket.cpp \
+    src/NCard/DuckDBInsertThread.cpp \
+    src/Windows/graphs/bar/bar.cpp \
     src/Windows/graphs/graphchoosing.cpp \
-    src/Windows/graphs/graphy.cpp \
     main.cpp \
     mainwindow.cpp \
     packages/service_pcap/misc.cpp \
     src/NCard/ncardauth.cpp \
     src/Windows/graphs/pike/pikegraph.cpp \
+    #src/Windows/graphs/stack/stack.cpp \
     src/Windows/resoursesview.cpp \
     src/NCard/sniffermonitoring.cpp \
     src/Windows/graphs/round/roundgraph.cpp
@@ -24,12 +25,12 @@ HEADERS += \
     src/NCard/DuckDBInsertThread.h \
     src/NCard/DuckDBInsertThread.h \
     src/NCard/DuckDBMaintenanceThread.h \
-    src/NCard/functionstodeterminepacket.h \
+    src/Windows/graphs/bar/bar.h \
     src/Windows/graphs/graphchoosing.h \
-    src/Windows/graphs/graphy.h \
     mainwindow.h \
     src/NCard/ncardauth.h \
     src/Windows/graphs/pike/pikegraph.h \
+    #src/Windows/graphs/stack/stack.h \
     src/Windows/resoursesview.h \
     src/NCard/sniffermonitoring.h \
     packages/service_pcap/misc.h \

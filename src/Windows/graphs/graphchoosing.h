@@ -4,6 +4,7 @@
 #include <QtCharts/QChartView>
 #include <QtCharts/QPieSeries>
 #include <QtCharts/QPieSlice>
+#include <QLineEdit>
 #include <QVBoxLayout>
 #include <QtCharts/QChart>
 #include <QDialog>
@@ -11,23 +12,21 @@
 #include <QPushButton>
 #include <QTimer>
 #include <QMessageBox>
+#include <QColorDialog>
 
 
 
 #include <ctime>
 #include <unordered_map>
+#include <variant>
 
-
-#include "src/NCard/functionstodeterminepacket.h"
 #include "src/Windows/graphs/pike/pikegraph.h"
 #include "src/Windows/graphs/round/roundgraph.h"
+#include "src/Windows/graphs/bar/bar.h"
+#include "src/Windows/graphs/stack/stack.h"
 #include "duckdb.hpp"
 
-
-
-
-using GraphPtr = std::variant<RoundGraphBackend*, PikesGraphBackend*>;
-using GraphStoragePtr = std::variant<std::unordered_map<QString, int>*, std::pair<std::array<std::array<std::array<int,60>,60>, 24>*, std::vector<int>*>*>;
+using GraphVariant = std::variant<RoundGraphBackend*, PikesGraphBackend*, BarGraphBackend*>;
 
 namespace Ui {
 class GraphChoosing;
@@ -39,7 +38,7 @@ class GraphChoosing : public QDialog {
 signals:
     void closeRequested();
 public:
-    explicit GraphChoosing(QWidget *parent, std::vector<const struct pcap_pkthdr*>& hdr, std::vector<const uchar*>& dta);
+    explicit GraphChoosing(QWidget *parent);
     ~GraphChoosing() { Cleanup(); }
     void closeEvent(QCloseEvent *event);
 
@@ -47,25 +46,18 @@ public:
         connection = conn;
     }
 
-
-    void setSrc(std::vector<const struct pcap_pkthdr*>& inputHdr, std::vector<const uchar*>& inputDta);
 public slots:
     void Repaint();
-    void createCircleDiagram();
-    void createPikeDiagram();
+    void createDiagram(QString);
 
 private:
     void Cleanup();
 
-    std::vector<const struct pcap_pkthdr*>*  header = nullptr;
-    std::vector<const uchar*>* pkt_data = nullptr;
-
-    std::list<GraphPtr> diagrams;
-    std::list<GraphStoragePtr> diagramsStorage;
+    std::list<GraphVariant> diagrams;
 
 
     std::shared_ptr<duckdb::Connection> connection = nullptr;
-
+    GraphVariant createGraphVariant(const QString&);
     QTimer *updateTimer = nullptr;
     Ui::GraphChoosing *ui;
 };

@@ -17,7 +17,6 @@
 #include <ctime>
 #include <unordered_map>
 
-#include "src/NCard/functionstodeterminepacket.h"
 #include "duckdb.hpp"
 
 class PikesGraph : public QDialog {
@@ -37,7 +36,7 @@ public:
         if((this->prevMaxSize != prevMaxSize && this->prevMaxSize == 0) || prevMaxSize == 0) {series->clear();}
         this->prevMaxSize = prevMaxSize;
     }
-    void setGraphData(std::vector<std::pair<std::string, int>>* dta) {
+    void setGraphData(std::vector<std::pair<QString, int>>* dta) {
         GraphData = dta;
     }
 
@@ -48,9 +47,14 @@ public slots:
         int index = 0;
         for (auto i : *GraphData) {
             series->append(index, i.second);
-            axisX->append(QString::fromStdString(i.first), index);
+            axisX->append(i.first, index);
             ++index;
         }
+        series->setColor(colorCurr);
+    }
+    void setColor(QColor color) {
+        if (series == nullptr) {return;}
+        colorCurr = color;
     }
 private:
     void ConstructGraph() {
@@ -93,8 +97,9 @@ private:
     QCategoryAxis *axisX = nullptr;
     QValueAxis *axisY = nullptr;
     QLineSeries* series = nullptr;
+    QColor colorCurr;
 
-    std::vector<std::pair<std::string, int>>* GraphData = nullptr;
+    std::vector<std::pair<QString, int>>* GraphData = nullptr;
 };
 
 
@@ -103,6 +108,7 @@ class PikesGraphBackend : public QDialog {
     Q_OBJECT
 public:
     PikesGraphBackend(QWidget *parent = nullptr);
+    ~PikesGraphBackend();
 
     QVBoxLayout* GetLayout();
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
@@ -111,13 +117,22 @@ public:
     QChartView* GetChartView() {
         return graph->GetChart();
     }
+    int start = -1;
+    int stop = -1;
+    int offset = 1000;
+
+    void setLen(int start, int stop, int offset) {};
 
 public slots:
     void Repaint();
+    void setColor(QColor color) {
+        if (graph == nullptr) {return;}
+        graph->setColor(color);
+    }
 private:
     void ConstructGraph();
 
-    std::vector<std::pair<std::string, int>> SearchByParams(int, int);
+    std::vector<std::pair<QString, int>> SearchByParams(int, int, int, int);
 
     void setGraphMode(int mode);
     int settingsApply();
@@ -134,7 +149,7 @@ private:
     enum Settings {hour, minute, second, liveH, liveM, liveS};
     Settings currentSetting = second;
 
-    std::vector<std::pair<std::string, int>>* GraphData = new std::vector<std::pair<std::string, int>>;
+    std::vector<std::pair<QString, int>>* GraphData = new std::vector<std::pair<QString, int>>;
 
     std::shared_ptr<duckdb::Connection> connection = nullptr;
 
