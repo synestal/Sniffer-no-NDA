@@ -121,6 +121,8 @@ public:
     int stop = -1;
     int offset = 1000;
 
+    void setLen(int start, int stop, int offset) {};
+
 public slots:
     void Repaint();
     void setColor(QColor color) {

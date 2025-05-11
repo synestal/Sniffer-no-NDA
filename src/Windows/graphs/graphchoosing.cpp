@@ -72,9 +72,7 @@ void GraphChoosing::createDiagram(QString type) {
                 return;
             }
             std::visit([&](auto&& graph) {
-                graph->start = num1;
-                graph->stop = num2;
-                graph->offset = num3;
+                graph->setLen(num1, num2, num3);
                 }, graphVariant);
         });
     }

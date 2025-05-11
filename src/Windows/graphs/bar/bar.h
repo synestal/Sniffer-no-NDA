@@ -13,136 +13,73 @@
 #include <QCategoryAxis>
 #include <QToolTip>
 
-
-
-#include <ctime>
+#include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "duckdb.hpp"
 
 class BarGraph : public QDialog {
     Q_OBJECT
 public:
-    explicit BarGraph(QWidget *parent = nullptr) : QDialog(parent) {
-        ConstructGraph();
-    }
+    explicit BarGraph(QWidget *parent = nullptr);
 
-    QChartView* GetChart() {
-        return chartView;
-    }
-
-    void setMaxObjects(int maxSize, int maxValue, int prevMaxSize) {
-        this->maxSize = maxSize;
-        this->maxValue = maxValue;
-        if((this->prevMaxSize != prevMaxSize && this->prevMaxSize == 0) || prevMaxSize == 0) {series->clear();}
-        this->prevMaxSize = prevMaxSize;
-    }
-    void setGraphData(std::vector<std::pair<QString, int>>* dta) {
-        GraphData = dta;
-    }
+    QChartView* GetChart();
+    void setMaxObjects(int maxSize, int maxValue, int prevMaxSize);
+    void setGraphData(const std::shared_ptr<std::vector<std::pair<QString, int>>>& data);
+    void setColor(const QColor& color);
 
 public slots:
-    void Repaint() {
-        series->clear();
-        axisX->setRange(0, maxSize);
-        axisY->setRange(0, maxValue);
-        int index = 0;
-        QBarSet *packetSizes = new QBarSet("Размеры пакетов (байт)");
-        for (auto i : *GraphData) {
-            *packetSizes << i.second;
-            axisX->append(i.first, index);
-            ++index;
-        }
-        packetSizes->setColor(colorCurr);
-        series->append(packetSizes);
-    }
-    void setColor(QColor color) {
-        if (series == nullptr) {return;}
-        colorCurr = color;
-    }
-private:
-    void ConstructGraph() {
-        chart = new QChart;
-        axisX = new QCategoryAxis();
-        axisY = new QValueAxis();
-        chartView = new QChartView(chart);
-        series = new QBarSeries();
+    void Repaint();
 
-        chart->addSeries(series);
-        chart->setTitle("Распределение");
-        axisX->setTitleText("Время");
-        chart->addAxis(axisX, Qt::AlignBottom);
-        series->attachAxis(axisX);
-        axisY->setTitleText("Количество пакетов");
-        chart->addAxis(axisY, Qt::AlignLeft);
-        series->attachAxis(axisY);
-        chartView->setRenderHint(QPainter::Antialiasing);
-        chartView->setRubberBand(QChartView::RectangleRubberBand);
-        chartView->setDragMode(QGraphicsView::ScrollHandDrag);
-    }
+private:
+    void ConstructGraph();
 
     int maxSize = 0;
     int maxValue = 0;
-
     int prevMaxSize = -1;
 
     QChartView *chartView = nullptr;
-    QChart* chart = nullptr;
-    QCategoryAxis* axisX = nullptr;
-    QValueAxis* axisY = nullptr;
-    QBarSeries* series = nullptr;
+    QChart *chart = nullptr;
+    QCategoryAxis *axisX = nullptr;
+    QValueAxis *axisY = nullptr;
+    QBarSeries *series = nullptr;
     QColor colorCurr;
 
-    std::vector<std::pair<QString, int>>* GraphData = nullptr;
+    std::shared_ptr<std::vector<std::pair<QString, int>>> graphData = nullptr;
 };
-
-
 
 class BarGraphBackend : public QDialog {
     Q_OBJECT
 public:
-    BarGraphBackend(QWidget *parent = nullptr);
+    explicit BarGraphBackend(QWidget *parent = nullptr);
+    ~BarGraphBackend();
 
     QVBoxLayout* GetLayout();
-    void setConnection(std::shared_ptr<duckdb::Connection> conn) {
-        connection = conn;
-    }
-    QChartView* GetChartView() {
-        return graph->GetChart();
-    }
+    QChartView* GetChartView();
+    void setConnection(const std::shared_ptr<duckdb::Connection>& conn);
+    void setColor(const QColor& color);
 
-    int start = -2;
-    int stop = -1;
-    int offset = 1000;
-    ~BarGraphBackend();
+    void setLen(int, int, int);
 
 public slots:
     void Repaint();
-    void setColor(QColor color) {
-        if (graph == nullptr) {return;}
-        graph->setColor(color);
-    }
+
 private:
     void ConstructGraph();
+    std::vector<std::pair<QString, int>> SearchByParams(int start, int stop, int offset);
 
-    std::vector<std::pair<QString, int>> SearchByParams(int, int, int);
+    QVBoxLayout *layout = nullptr;
+    std::unique_ptr<BarGraph> graph;
+    std::shared_ptr<std::vector<std::pair<QString, int>>> graphData;
 
-    void setGraphMode(int mode);
-    int settingsApply();
-
-    QVBoxLayout* layout = nullptr;
-    BarGraph* graph = nullptr;
-
-    int timeLive = -1;
-    int maxSize = 0;
-    int maxValue = 0;
+    int lenStart = -2;
+    int lenStop = -1;
+    int offset = 1000;
 
     int prevMaxSize = 0;
 
-    std::vector<std::pair<QString, int>>* GraphData = new std::vector<std::pair<QString, int>>;
-
     std::shared_ptr<duckdb::Connection> connection = nullptr;
-
 };
 
 #endif // BAR_H
