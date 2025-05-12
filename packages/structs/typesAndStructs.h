@@ -12,6 +12,7 @@ typedef struct packet_info {
     QString srcInfo = "";
     QString destInfo = "";
     QString packetType = "";
+    QString data = "";
 }packet_info;
 
 struct ethernet_header {
@@ -49,6 +50,7 @@ typedef struct udp_header{
   u_short len;   // Datagram length
   u_short crc;   // Checksum
 }udp_header;
+
 
 
 #endif // TYPESANDSTRUCTS_H

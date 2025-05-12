@@ -1,0 +1,248 @@
+workspace {
+    model {
+        // Люди
+        user = person "Пользователь" "Пользователь системы анализа сетевого трафика"
+        analyst = person "Аналитик" "Специалист, анализирующий трафик и паттерны"
+
+        // Внешние системы
+        operatingSystem = softwareSystem "Операционная система" "Среда выполнения программы и источник доступа к сетевым интерфейсам"
+
+        // Основная система
+        networkAnalyzer = softwareSystem "Система анализа сетевого трафика" "Перехватывает, сохраняет и анализирует сетевой трафик" {
+            // Контейнеры (уровень приложения)
+            captureModule = container "Модуль захвата трафика" "Захватывает пакеты из сетевого интерфейса используя libpcap/winpcap" "C++" {
+                pcapAdapter = component "Адаптер PCAP" "Взаимодействует с библиотекой libpcap/winpcap для захвата пакетов" "C++"
+                packetBuffer = component "Буфер пакетов" "Буферизирует захваченные пакеты перед обработкой" "C++"
+                packetParser = component "Парсер пакетов" "Разбирает пакеты на составляющие поля и декодирует протоколы" "C++"
+                captureFilter = component "Фильтр захвата" "Позволяет фильтровать пакеты при захвате по заданным критериям" "C++"
+                pcapListener = component "Слушатель сетевого интерфейса" "Отслеживает активность на выбранных интерфейсах" "C++"
+                packetSignalEmitter = component "Эмиттер сигналов пакетов" "Генерирует Qt сигналы о новых пакетах" "C++/Qt"
+            }
+
+            storageModule = container "Модуль хранения данных" "Сохраняет и управляет данными пакетов в DuckDB" "C++/SQL" {
+                duckDBManager = component "Менеджер DuckDB" "Управляет подключением и взаимодействием с базой данных" "C++"
+                dataLoader = component "Загрузчик данных" "Загружает и форматирует данные для сохранения в БД" "C++"
+                queryBuilder = component "Конструктор запросов" "Формирует SQL-запросы для различных сценариев использования" "C++"
+                dataCache = component "Кэш данных" "Кэширует часто запрашиваемые данные для повышения производительности" "C++"
+                storageSlotHandler = component "Обработчик слотов хранения" "Принимает сигналы Qt и вызывает соответствующие операции хранения" "C++/Qt"
+            }
+
+            analyticsModule = container "Ядро системы аналитики" "Обрабатывает и анализирует собранные данные" "C++/Python" {
+                trafficAnalyzer = component "Анализатор трафика" "Выполняет глубокий анализ сетевого трафика и выявляет паттерны" "C++/Python"
+                statisticsEngine = component "Движок статистики" "Собирает статистику по различным параметрам трафика" "C++"
+                reportGenerator = component "Генератор отчетов" "Создает отчеты на основе проанализированных данных" "C++/Python"
+                visualizationCore = component "Ядро визуализации" "Подготавливает данные для визуализации в графиках и диаграммах" "C++/Python"
+                analyticsController = component "Контроллер аналитики" "Координирует процессы анализа и объединяет результаты" "C++"
+                analyticsSignalEmitter = component "Эмиттер сигналов аналитики" "Генерирует Qt сигналы с результатами анализа" "C++/Qt"
+                analyticsSlotHandler = component "Обработчик слотов аналитики" "Принимает сигналы от GUI и других компонентов" "C++/Qt"
+            }
+
+            guiModule = container "Графический интерфейс пользователя" "Предоставляет пользовательский интерфейс на основе Qt" "C++/Qt" {
+                mainWindow = component "Главное окно" "Основной интерфейс пользователя" "C++/Qt"
+                packetTableView = component "Таблица пакетов" "Отображает список перехваченных пакетов" "C++/Qt"
+                packetDetailView = component "Детали пакета" "Показывает детальную структуру выбранного пакета" "C++/Qt"
+                filterInterface = component "Интерфейс фильтрации" "Позволяет пользователю задавать критерии фильтрации" "C++/Qt"
+                chartsView = component "Панель графиков" "Отображает графики и диаграммы для визуальной аналитики" "C++/Qt"
+                settingsPanel = component "Панель настроек" "Управление настройками приложения" "C++/Qt"
+                uiSignalEmitter = component "Эмиттер сигналов UI" "Генерирует Qt сигналы на основе действий пользователя" "C++/Qt"
+                uiSlotHandler = component "Обработчик слотов UI" "Принимает сигналы и обновляет интерфейс" "C++/Qt"
+            }
+
+            utilityModule = container "Служебные модули" "Обеспечивают вспомогательную функциональность" "C++" {
+                logger = component "Система логирования" "Записывает события и ошибки в журнал" "C++"
+                configManager = component "Менеджер конфигурации" "Управляет настройками приложения" "C++"
+                performanceMonitor = component "Монитор производительности" "Отслеживает производительность системы" "C++"
+                updater = component "Система обновлений" "Обеспечивает обновление программного обеспечения" "C++"
+                errorHandler = component "Обработчик ошибок" "Обрабатывает и логирует исключения и ошибки" "C++"
+            }
+
+            // Шина сигналов и слотов Qt
+            qtSignalSlotBus = container "Шина сигналов и слотов Qt" "Обеспечивает асинхронную коммуникацию между компонентами системы" "Qt" {
+                signalSlotConnector = component "Коннектор сигналов и слотов" "Устанавливает соединения между сигналами и слотами" "C++/Qt"
+                signalQueue = component "Очередь сигналов" "Буферизирует сигналы для асинхронной обработки" "C++/Qt"
+                eventLoop = component "Цикл событий" "Управляет обработкой сигналов и событий" "C++/Qt"
+            }
+
+            // Интегрированная DuckDB в основной системе (важное изменение - перемещено внутрь системы)
+            duckDBContainer = container "DuckDB" "Колоночная аналитическая БД для хранения и обработки данных пакетов" "DuckDB" {
+                packetTable = component "Таблица packets" "Основная таблица с данными пакетов" "DuckDB"
+                metadataTable = component "Таблица metadata" "Метаданные о сессиях захвата" "DuckDB"
+                sessionTable = component "Таблица sessions" "Информация о сетевых сессиях" "DuckDB"
+                statTable = component "Таблица statistics" "Агрегированная статистика" "DuckDB"
+            }
+        }
+
+        // Связи на уровне системы
+        user -> networkAnalyzer "Использует для анализа сетевого трафика"
+        analyst -> networkAnalyzer "Проводит углубленный анализ"
+        networkAnalyzer -> operatingSystem "Получает доступ к сетевым интерфейсам"
+
+        // Связи между контейнерами
+        user -> guiModule "Взаимодействует через"
+        analyst -> guiModule "Просматривает аналитические данные через"
+        captureModule -> operatingSystem "Получает доступ к пакетам через"
+        captureModule -> qtSignalSlotBus "Отправляет сигналы через"
+        storageModule -> qtSignalSlotBus "Получает/отправляет сигналы через"
+        guiModule -> qtSignalSlotBus "Получает/отправляет сигналы через"
+        analyticsModule -> qtSignalSlotBus "Получает/отправляет сигналы через"
+        storageModule -> duckDBContainer "Управляет данными в"
+
+        // Связи между компонентами модуля захвата
+        pcapListener -> pcapAdapter "Использует для доступа к интерфейсам"
+        pcapAdapter -> packetBuffer "Помещает захваченные пакеты в"
+        packetBuffer -> captureFilter "Передает пакеты через"
+        captureFilter -> packetParser "Передает отфильтрованные пакеты в"
+        packetParser -> packetSignalEmitter "Передает обработанные пакеты в"
+        packetSignalEmitter -> signalSlotConnector "Эмитирует сигналы newPacket() в"
+
+        // Связи между компонентами хранения
+        storageSlotHandler -> signalSlotConnector "Регистрирует слоты в"
+        storageSlotHandler -> dataLoader "Вызывает при получении сигнала о новом пакете"
+        dataLoader -> duckDBManager "Использует для сохранения данных"
+        queryBuilder -> duckDBManager "Формирует запросы для"
+        duckDBManager -> dataCache "Кэширует результаты запросов в"
+        duckDBManager -> packetTable "Записывает и читает данные из"
+        duckDBManager -> metadataTable "Записывает и читает данные из"
+        duckDBManager -> sessionTable "Записывает и читает данные из"
+        duckDBManager -> statTable "Записывает и читает данные из"
+
+        // Связи между компонентами аналитики
+        analyticsSlotHandler -> signalSlotConnector "Регистрирует слоты в"
+        analyticsSlotHandler -> analyticsController "Вызывает методы при получении сигналов"
+        analyticsController -> trafficAnalyzer "Координирует работу"
+        analyticsController -> statisticsEngine "Координирует работу"
+        analyticsController -> reportGenerator "Координирует работу"
+        analyticsController -> visualizationCore "Координирует работу"
+        trafficAnalyzer -> queryBuilder "Запрашивает данные через"
+        statisticsEngine -> queryBuilder "Запрашивает данные через"
+        analyticsController -> analyticsSignalEmitter "Передает результаты анализа в"
+        analyticsSignalEmitter -> signalSlotConnector "Эмитирует сигналы analysisResult() в"
+
+        // Связи между компонентами GUI
+        uiSlotHandler -> signalSlotConnector "Регистрирует слоты в"
+        uiSignalEmitter -> signalSlotConnector "Эмитирует сигналы userAction() в"
+        uiSlotHandler -> mainWindow "Обновляет при получении сигналов"
+        mainWindow -> packetTableView "Содержит"
+        mainWindow -> packetDetailView "Содержит"
+        mainWindow -> filterInterface "Содержит"
+        mainWindow -> chartsView "Содержит"
+        mainWindow -> settingsPanel "Содержит"
+        packetTableView -> uiSignalEmitter "Генерирует события через"
+        packetDetailView -> uiSignalEmitter "Генерирует события через"
+        filterInterface -> uiSignalEmitter "Генерирует события через"
+        chartsView -> uiSlotHandler "Обновляется через"
+
+        // Связи между шиной сигналов/слотов и другими компонентами
+        signalSlotConnector -> signalQueue "Помещает сигналы в"
+        signalQueue -> eventLoop "Обрабатывается в"
+
+        // Связи между компонентами служебных модулей
+        configManager -> settingsPanel "Предоставляет настройки для"
+        performanceMonitor -> mainWindow "Отображает метрики через"
+        errorHandler -> logger "Регистрирует ошибки через"
+    }
+
+    views {
+        // Контекстная диаграмма
+        systemContext networkAnalyzer "ContextDiagram" "Контекстная диаграмма системы анализа сетевого трафика" {
+            include *
+            autoLayout
+        }
+
+        // Диаграмма контейнеров
+        container networkAnalyzer "ContainerDiagram" "Диаграмма контейнеров системы анализа сетевого трафика" {
+            include *
+            autoLayout
+        }
+
+        // Диаграммы компонентов для каждого контейнера
+        component captureModule "CaptureDiagram" "Диаграмма компонентов модуля захвата трафика" {
+            include *
+            autoLayout
+        }
+
+        component storageModule "StorageDiagram" "Диаграмма компонентов модуля хранения данных" {
+            include *
+            autoLayout
+        }
+
+        component analyticsModule "AnalyticsDiagram" "Диаграмма компонентов ядра системы аналитики" {
+            include *
+            autoLayout
+        }
+
+        component guiModule "GUIDiagram" "Диаграмма компонентов графического интерфейса" {
+            include *
+            autoLayout
+        }
+
+        component qtSignalSlotBus "SignalSlotDiagram" "Диаграмма шины сигналов и слотов Qt" {
+            include *
+            autoLayout
+        }
+
+        component duckDBContainer "DuckDBDiagram" "Структура данных DuckDB" {
+            include *
+            autoLayout
+        }
+
+        // Специальная диаграмма для связей сигналов и слотов
+        dynamic qtSignalSlotBus "SignalFlowDiagram" "Поток сигналов между компонентами" {
+            packetSignalEmitter -> signalSlotConnector "newPacket()"
+            signalSlotConnector -> storageSlotHandler "onNewPacket()"
+            uiSignalEmitter -> signalSlotConnector "requestData()"
+            signalSlotConnector -> analyticsSlotHandler "processRequest()"
+            analyticsSignalEmitter -> signalSlotConnector "analysisResult()"
+            signalSlotConnector -> uiSlotHandler "updateCharts()"
+            autoLayout
+        }
+
+
+
+
+        styles {
+            element "Person" {
+                background "#08427B"
+                color "#000000"
+                fontSize 70
+                width 550
+                shape "Person"
+            }
+            element "Software System" {
+                background "#1168BD"
+                color "#000000"
+                fontSize 70
+                width 550
+            }
+            element "Container" {
+                background "#438DD5"
+                color "#000000"
+                fontSize 70
+                width 550
+            }
+            element "Component" {
+                background "#85BBF0"
+                color "#000000"
+                fontSize 70
+                width 550
+            }
+            relationship "Сигнал" {
+                dashed false
+                color "#000000"
+                fontSize 70
+                width 550
+            }
+            relationship "Слот" {
+                dashed true
+                color "#000000"
+                fontSize 70
+                width 550
+            }
+            relationship "default" {
+                color "#000000"
+                fontSize 70
+            }
+
+        }
+    }
+}
