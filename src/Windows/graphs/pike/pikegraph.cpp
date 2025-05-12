@@ -5,6 +5,11 @@ PikesGraphBackend::PikesGraphBackend(QWidget *parent)
         ConstructGraph();
         graph->setGraphData(GraphData);
     }
+PikesGraphBackend::~PikesGraphBackend() {
+    delete graph;
+    delete layout;
+    delete GraphData;
+}
 
     QVBoxLayout* PikesGraphBackend::GetLayout() {
         return layout;
@@ -16,22 +21,22 @@ PikesGraphBackend::PikesGraphBackend(QWidget *parent)
         GraphData->clear();
         switch (currentSetting) {
         case hour:
-            *GraphData = SearchByParams(3600, 59);
+            *GraphData = SearchByParams(3600, 59, static_cast<int>(std::time(nullptr)) - 60*60*24, static_cast<int>(std::time(nullptr)));
             break;
         case minute:
-            *GraphData = SearchByParams(60, 59);
+            *GraphData = SearchByParams(60, 59, static_cast<int>(std::time(nullptr)) - 60*60, static_cast<int>(std::time(nullptr)));
             break;
         case second:
-            *GraphData = SearchByParams(1, 59);
+            *GraphData = SearchByParams(1, 59, static_cast<int>(std::time(nullptr)) - 60, static_cast<int>(std::time(nullptr)));
             break;
         case liveH:
-            *GraphData = SearchByParams(3600, 59);
+            *GraphData = SearchByParams(3600, 59, static_cast<int>(std::time(nullptr)) - 60*60*24, static_cast<int>(std::time(nullptr)));
             break;
         case liveM:
-            *GraphData = SearchByParams(60, 59);
+            *GraphData = SearchByParams(60, 59, static_cast<int>(std::time(nullptr)) - 60*60, static_cast<int>(std::time(nullptr)));
             break;
         case liveS:
-            *GraphData = SearchByParams(1, 59);
+            *GraphData = SearchByParams(1, 59, static_cast<int>(std::time(nullptr)) - 60, static_cast<int>(std::time(nullptr)));
             break;
         }
         for (auto i : *GraphData) {
@@ -99,38 +104,38 @@ PikesGraphBackend::PikesGraphBackend(QWidget *parent)
         }
     }
 
-    std::vector<std::pair<std::string, int>> PikesGraphBackend::SearchByParams(int delitel, int offset ) {
+    std::vector<std::pair<QString, int>> PikesGraphBackend::SearchByParams(int delitel, int offset, int start, int stop) {
         if (!connection) {
             qDebug() << "Connection is null in roundGraph";
-            return std::vector<std::pair<std::string, int>>{};
+            return std::vector<std::pair<QString, int>>{};
         }
         if (delitel < 0 || offset < 0) {
             qDebug() << "Invalid info to search by params";
-            return std::vector<std::pair<std::string, int>>{};
+            return std::vector<std::pair<QString, int>>{};
         }
         try {
-            std::string query = "WITH extracted AS (SELECT CAST(ts / " +   std::to_string(delitel) + " AS INTEGER) AS minute_ts FROM packets), " +
-                  "latest AS (SELECT MAX(minute_ts) AS latest_minute FROM extracted) " +
-                  "SELECT minute_ts, STRFTIME(TO_TIMESTAMP(minute_ts * " + std::to_string(delitel) + "), '%Y-%m-%d %H:%M') AS minute_str, " +
-                  "COUNT(*) AS packet_count FROM extracted, latest " +
-                  "WHERE minute_ts BETWEEN latest_minute - " + std::to_string(offset) + " AND latest_minute " +
-                  "GROUP BY minute_ts ORDER BY minute_ts;";
+            std::ostringstream oss;
+            oss << "SELECT ts AS unix_time, COUNT(*) AS count FROM packets "
+                << "WHERE ts >= " << start << " AND ts < " << stop
+                << " GROUP BY unix_time ORDER BY unix_time;";
+            std::string query = oss.str();
+
             auto result = connection->Query(query);
             if (!result || result->HasError()) {
                 qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
-                return std::vector<std::pair<std::string, int>>{};
+                return std::vector<std::pair<QString, int>>{};
             }
             size_t row_count = result->RowCount();
             if (row_count == 0) {
                 qDebug() << "No data returned from query";
-                return std::vector<std::pair<std::string, int>>{};
+                return std::vector<std::pair<QString, int>>{};
             }
-            std::vector<std::pair<std::string, int>> returningVal;
+            std::vector<std::pair<QString, int>> returningVal; returningVal.reserve(row_count);
             try {
                 for (int i = 0; i < row_count; i++) {
-                    std::string str = result->GetValue(1, i).GetValue<std::string>();
-                    int cnt = result->GetValue<int64_t>(2, i);
-                    returningVal.push_back(std::pair<std::string, int>(str, cnt));
+                    QString str = QDateTime::fromSecsSinceEpoch(result->GetValue(0, i).GetValue<int64_t>()).toString("yyyy:MM:dd:hh:mm:ss");
+                    int cnt = result->GetValue<int8_t>(1, i);
+                    returningVal.push_back(std::pair<QString, int>(str, cnt));
                 }
             } catch (const std::exception& e) {
                 qDebug() << "Error processing row:" << e.what();
@@ -138,7 +143,7 @@ PikesGraphBackend::PikesGraphBackend(QWidget *parent)
             return returningVal;
         } catch (const std::exception& e) {
             qDebug() << "DuckDB error: " << e.what();
-            return std::vector<std::pair<std::string, int>>{};
+            return std::vector<std::pair<QString, int>>{};
         }
     }
 
