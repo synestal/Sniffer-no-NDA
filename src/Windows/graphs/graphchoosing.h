@@ -26,7 +26,7 @@
 #include "src/Windows/graphs/stack/stack.h"
 #include "duckdb.hpp"
 
-using GraphVariant = std::variant<RoundGraphBackend*, PikesGraphBackend*, BarGraphBackend*>;
+using GraphVariant = std::variant<RoundGraphBackend*, PikesGraphBackend*, BarGraphBackend*, StackGraphBackend*>;
 
 namespace Ui {
 class GraphChoosing;

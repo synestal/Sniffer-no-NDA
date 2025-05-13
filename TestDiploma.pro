@@ -16,7 +16,7 @@ SOURCES += \
     packages/service_pcap/misc.cpp \
     src/NCard/ncardauth.cpp \
     src/Windows/graphs/pike/pikegraph.cpp \
-    #src/Windows/graphs/stack/stack.cpp \
+    src/Windows/graphs/stack/stack.cpp \
     src/Windows/resoursesview.cpp \
     src/NCard/sniffermonitoring.cpp \
     src/Windows/graphs/round/roundgraph.cpp
@@ -30,7 +30,7 @@ HEADERS += \
     mainwindow.h \
     src/NCard/ncardauth.h \
     src/Windows/graphs/pike/pikegraph.h \
-    #src/Windows/graphs/stack/stack.h \
+    src/Windows/graphs/stack/stack.h \
     src/Windows/resoursesview.h \
     src/NCard/sniffermonitoring.h \
     packages/service_pcap/misc.h \

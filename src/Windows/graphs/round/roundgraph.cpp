@@ -82,7 +82,8 @@ void RoundGraphBackend::Repaint() {
     if (!ObjectsCount) return;
     ObjectsCount->clear();
     for (const auto& pair : ethset) {
-        ObjectsCount->emplace(pair.second, SearchByParams(13, 1, pair.first));
+        int param = SearchByParams(13, 1, pair.first);
+        ObjectsCount->emplace(pair.second, param);
     }
     if (graph) graph->Repaint();
 }

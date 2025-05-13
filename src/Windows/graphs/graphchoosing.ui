@@ -154,7 +154,7 @@
      <addaction name="actionCreateLineChart"/>
      <addaction name="actionCreateBarChart"/>
      <addaction name="actionCreatePieChart"/>
-     <addaction name="actionCreateScatterChart"/>
+     <addaction name="actionCreateStackChart"/>
     </widget>
     <addaction name="menuCreate"/>
     <addaction name="separator"/>
@@ -187,7 +187,7 @@
     <string>Круговая диаграмма</string>
    </property>
   </action>
-  <action name="actionCreateScatterChart">
+  <action name="actionCreateStackChart">
    <property name="text">
     <string>Накопительный график</string>
    </property>

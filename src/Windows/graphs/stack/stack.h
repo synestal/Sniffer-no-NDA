@@ -2,8 +2,10 @@
 #define STACK_H
 
 #include <QtCharts/QChartView>
-#include <QtCharts/QLineSeries>
+#include <QtCharts/QStackedBarSeries>
 #include <QtCharts/QValueAxis>
+#include <QBarCategoryAxis>
+#include <QBarSet>
 #include <QVBoxLayout>
 #include <QDateTime>
 #include <QtCharts/QChart>
@@ -21,85 +23,29 @@
 
 class StackGraph : public QDialog {
     Q_OBJECT
-public:
-    explicit StackGraph(QWidget *parent = nullptr) : QDialog(parent) {
-        ConstructGraph();
-    }
-
-    QChartView* GetChart() {
-        return chartView;
-    }
-
-    void setMaxObjects(int maxSize, int maxValue, int prevMaxSize) {
-        this->maxSize = maxSize;
-        this->maxValue = maxValue;
-        if((this->prevMaxSize != prevMaxSize && this->prevMaxSize == 0) || prevMaxSize == 0) {series->clear();}
-        this->prevMaxSize = prevMaxSize;
-    }
-    void setGraphData(std::vector<std::pair<QString, int>>* dta) {
-        GraphData = dta;
-    }
-
 public slots:
-    void Repaint() {
-        axisX->setRange(0, maxSize);
-        axisY->setRange(0, maxValue);
-        int index = 0;
-        for (auto i : *GraphData) {
-            series->append(index, i.second);
-            axisX->append(i.first, index);
-            ++index;
-        }
-        series->setColor(colorCurr);
-    }
     void setColor(QColor color) {
-        if (series == nullptr) {return;}
-        colorCurr = color;
+        if (series) colorCurr = color;
     }
+public:
+    StackGraph(std::vector<std::pair<QBarSet*, QString>>& dta, QWidget *parent = nullptr);
+    QChartView* GetChart();
+    void Repaint();
+
 private:
-    void ConstructGraph() {
-        chart = new QChart;
-        axisX = new QCategoryAxis();
-        axisY = new QValueAxis();
-        chartView = new QChartView(chart);
-        series = new QLineSeries();
+    void ConstructGraph();
+    int CalculateMaxValue();
+    int currentStep = 0;
 
-        chart->addSeries(series);
-        chart->setTitle("Распределение количества пакетов от времени");
-        axisX->setTitleText("Время");
-        chart->addAxis(axisX, Qt::AlignBottom);
-        series->attachAxis(axisX);
-        axisY->setTitleText("Количество пакетов");
-        chart->addAxis(axisY, Qt::AlignLeft);
-        series->attachAxis(axisY);
-        chartView->setRenderHint(QPainter::Antialiasing);
-        connect(series, &QLineSeries::hovered, this, [=](const QPointF &point, bool state) {
-            if (state) {
-                QString text = QString("X: %1\nY: %2")
-                                    .arg(point.x(), 0, 'f', 2)
-                                    .arg(point.y(), 0, 'f', 2);
-                QToolTip::showText(QCursor::pos(), text);
-            } else {
-                QToolTip::hideText();
-            }
-        });
-        chartView->setRubberBand(QChartView::RectangleRubberBand);
-        chartView->setDragMode(QGraphicsView::ScrollHandDrag);
-    }
+    QColor colorCurr = 255;
 
-    int maxSize = 0;
-    int maxValue = 0;
+    QBarCategoryAxis* axisX = nullptr;
+    QValueAxis* axisY = nullptr;
 
-    int prevMaxSize = -1;
-
+    std::vector<std::pair<QBarSet*, QString>>* dataColumns = nullptr;
     QChartView *chartView = nullptr;
     QChart* chart = nullptr;
-    QCategoryAxis *axisX = nullptr;
-    QValueAxis *axisY = nullptr;
-    QLineSeries* series = nullptr;
-    QColor colorCurr;
-
-    std::vector<std::pair<QString, int>>* GraphData = nullptr;
+    QStackedBarSeries* series = nullptr;
 };
 
 
@@ -108,45 +54,51 @@ class StackGraphBackend : public QDialog {
     Q_OBJECT
 public:
     StackGraphBackend(QWidget *parent = nullptr);
+    ~StackGraphBackend();
 
     QVBoxLayout* GetLayout();
+    QChart* GetCh();
+    void Repaint();
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
+        qDebug("here");
         connection = conn;
     }
-    QChartView* GetChartView() {
-        return graph->GetChart();
+    int SearchByParams(int, int, const QString);
+    QChartView* GetChartView();
+
+    int start = -1;
+    int stop = -1;
+    int offset = 1000;
+
+    void setLen(int start, int stop, int offset) {};
+public slots:
+    void setColor(QColor color) {
+        if (graph) graph->setColor(color);
     }
 
-public slots:
-    void Repaint();
-    void setColor(QColor color) {
-        if (graph == nullptr) {return;}
-        graph->setColor(color);
-    }
 private:
     void ConstructGraph();
 
-    std::vector<std::pair<QString, int>> SearchByParams(int, int, int, int);
-
-    void setGraphMode(int mode);
-    int settingsApply();
-
     QVBoxLayout* layout = nullptr;
     StackGraph* graph = nullptr;
-
-    int timeLive = -1;
-    int maxSize = 0;
-    int maxValue = 0;
-
-    int prevMaxSize = 0;
-
-    enum Settings {hour, minute, second, liveH, liveM, liveS};
-    Settings currentSetting = second;
-
-    std::vector<std::pair<QString, int>>* GraphData = new std::vector<std::pair<QString, int>>;
-
+    QChart* chart = nullptr;
+    QStackedBarSeries* series = nullptr;
     std::shared_ptr<duckdb::Connection> connection = nullptr;
 
+    std::vector<std::pair<QBarSet*, QString>>* dataColumns = nullptr;
+
+    const std::unordered_map<QString, QString> ethset = {
+        {"\\x08\\x00\\x06", "IPv4 - TCP"}, {"\\x08\\x00\\x11", "IPv4 - UDP"},
+        {"\\x08\\x00\\x01", "IPv4 - ICMP"}, {"\\x08\\x00\\x02", "IPv4 - IGMP"},
+        {"\\x86\\xDD\\x06", "IPv6 - TCP"}, {"\\x86\\xDD\\x11", "IPv6 - UDP"},
+        {"\\x86\\xDD\\x3A", "IPv6 - ICMPv6"}, {"\\x08\\x06", "ARP"},
+        {"\\x80\\x35", "RARP"}, {"\\x81\\x37", "IPX"}, {"\\x88\\x47", "MPLS Unicast"},
+        {"\\x88\\x48", "MPLS Multicast"}, {"\\x88\\x63", "PPPoE Discovery"},
+        {"\\x88\\x64", "PPPoE Session"}, {"\\x80\\x00", "SNAP"}, {"\\x81\\x00", "VLAN 802.1Q"},
+        {"\\x88\\xA8", "QinQ (802.1ad)"}, {"\\x88\\x8E", "EAPOL"}, {"\\x88\\xCC", "LLDP"},
+        {"\\x89\\x02", "Ethernet OAM"}, {"\\x88\\x09", "LACP"}, {"\\x88\\xF7", "PTP"},
+        {"\\x88\\x0B", "PPP"}, {"\\x88\\xE5", "MACsec"}
+    };
 };
 
 #endif // STACK_H

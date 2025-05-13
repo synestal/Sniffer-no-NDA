@@ -7,6 +7,7 @@ GraphChoosing::GraphChoosing(QWidget *parent) : QDialog(parent), ui(new Ui::Grap
     connect(ui->actionCreatePieChart, &QAction::triggered, this, [this](){this->createDiagram("circle");});
     connect(ui->actionCreateLineChart, &QAction::triggered, this, [this](){this->createDiagram("pike");});
     connect(ui->actionCreateBarChart, &QAction::triggered, this, [this](){this->createDiagram("bar");});
+    connect(ui->actionCreateStackChart, &QAction::triggered, this, [this](){this->createDiagram("stack");});
     ui->verticalLayout->removeWidget(ui->chartGroupBox1);
     ui->chartGroupBox1->hide();
     resize(1920, 1080);
@@ -32,6 +33,8 @@ GraphVariant GraphChoosing::createGraphVariant(const QString& type) {
         return new PikesGraphBackend();
     } else if (type == "bar") {
         return new BarGraphBackend();
+    } else if (type == "stack") {
+        return new StackGraphBackend();
     }
     throw std::runtime_error("Unknown graph type");
 }
@@ -80,20 +83,23 @@ void GraphChoosing::createDiagram(QString type) {
     settingsLayout->addWidget(typeComboBox);
     auto* gridCheckBox = new QCheckBox("Показать сетку");
     settingsLayout->addWidget(gridCheckBox);
-    auto* colorButton = new QPushButton("Цвет линии");
-    settingsLayout->addWidget(colorButton);
+    if (!std::holds_alternative<StackGraphBackend*>(graphVariant)) {
+        auto* colorButton = new QPushButton("Цвет линии");
+        settingsLayout->addWidget(colorButton);
+        std::visit([&](auto&& graph) {
+            connect(colorButton, &QPushButton::clicked, [this, graph]() {
+                QColor color = QColorDialog::getColor(Qt::red, this, "Выберите цвет линии");
+                if (color.isValid()) {
+                    graph->setColor(color);
+                }
+            });
+            }, graphVariant);
+    }
     settingsLayout->addStretch();
     mainLayout->addWidget(settingsGroupBox);
     ui->chartsLayout->insertWidget(ui->chartsLayout->count() - 1, chartGroupBox);
 
-    std::visit([&](auto&& graph) {
-        connect(colorButton, &QPushButton::clicked, [this, graph]() {
-            QColor color = QColorDialog::getColor(Qt::red, this, "Выберите цвет линии");
-            if (color.isValid()) {
-                graph->setColor(color);
-            }
-        });
-        }, graphVariant);
+
     /*
 
     connect(gridCheckBox, &QCheckBox::stateChanged, [graph](int state) {
@@ -120,6 +126,9 @@ void GraphChoosing::Repaint() {
         } else if (std::holds_alternative<BarGraphBackend*>(*diagramIt)) {
             BarGraphBackend* barGraph = std::get<BarGraphBackend*>(*diagramIt);
             barGraph->Repaint();
+        } else if (std::holds_alternative<StackGraphBackend*>(*diagramIt)) {
+            StackGraphBackend* stackGraph = std::get<StackGraphBackend*>(*diagramIt);
+            stackGraph->Repaint();
         }
     }
 }
