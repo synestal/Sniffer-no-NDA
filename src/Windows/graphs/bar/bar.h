@@ -28,6 +28,7 @@ public:
     void setMaxObjects(int maxSize, int maxValue, int prevMaxSize);
     void setGraphData(const std::shared_ptr<std::vector<std::pair<QString, int>>>& data);
     void setColor(const QColor& color);
+    void setGrid(bool state);
 
 public slots:
     void Repaint();
@@ -61,12 +62,16 @@ public:
     void setColor(const QColor& color);
 
     void setLen(int, int, int);
+    void setGrid(bool state);
+    QString queryRaw = "SELECT COUNT(*) FROM packets WHERE (packet_type = '%1');";
+    bool applyChangesFromChoosing(QString);
 
 public slots:
     void Repaint();
 
 private:
     void ConstructGraph();
+    bool queryIsChanged = false;
     std::vector<std::pair<QString, int>> SearchByParams(int start, int stop, int offset);
 
     QVBoxLayout *layout = nullptr;

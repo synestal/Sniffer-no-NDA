@@ -31,6 +31,7 @@ public:
     StackGraph(std::vector<std::pair<QBarSet*, QString>>& dta, QWidget *parent = nullptr);
     QChartView* GetChart();
     void Repaint();
+    void setGrid(bool state);
 
 private:
     void ConstructGraph();
@@ -60,7 +61,6 @@ public:
     QChart* GetCh();
     void Repaint();
     void setConnection(std::shared_ptr<duckdb::Connection> conn) {
-        qDebug("here");
         connection = conn;
     }
     int SearchByParams(int, int, const QString);
@@ -71,6 +71,9 @@ public:
     int offset = 1000;
 
     void setLen(int start, int stop, int offset) {};
+    void setGrid(bool state);
+    QString queryRaw = "SELECT COUNT(*) FROM packets WHERE (packet_type = '%1');";
+    bool applyChangesFromChoosing(QString);
 public slots:
     void setColor(QColor color) {
         if (graph) graph->setColor(color);
@@ -78,6 +81,7 @@ public slots:
 
 private:
     void ConstructGraph();
+    bool queryIsChanged = false;
 
     QVBoxLayout* layout = nullptr;
     StackGraph* graph = nullptr;

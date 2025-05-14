@@ -53,7 +53,6 @@ void GraphChoosing::createDiagram(QString type) {
         }, graphVariant);
     auto* settingsGroupBox = new QGroupBox("Настройки");
     auto* settingsLayout = new QVBoxLayout(settingsGroupBox);
-    auto* typeComboBox = new QComboBox();
     if (std::holds_alternative<BarGraphBackend*>(graphVariant)) {
         QLineEdit *lineEdit = new QLineEdit(this);
         lineEdit->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
@@ -79,10 +78,55 @@ void GraphChoosing::createDiagram(QString type) {
                 }, graphVariant);
         });
     }
-    typeComboBox->addItems({"Круговая", "Линейная", "Столбчатая", "Точечная"});
-    settingsLayout->addWidget(typeComboBox);
-    auto* gridCheckBox = new QCheckBox("Показать сетку");
-    settingsLayout->addWidget(gridCheckBox);
+    auto* sqlButton = new QPushButton("Редактирование запроса");
+    connect(sqlButton, &QPushButton::clicked, this, [=]() {
+        QDialog* settingsWindow = new QDialog(this);
+        settingsWindow->setWindowTitle("Параметры программы");
+        settingsWindow->resize(300, 200);
+        settingsWindow->setWindowFlags(Qt::Window | Qt::WindowCloseButtonHint | Qt::WindowMinimizeButtonHint);
+
+        QVBoxLayout *mainLayout = new QVBoxLayout(settingsWindow);
+        QHBoxLayout *inputLayout = new QHBoxLayout();
+
+        QLineEdit *memoryLimitInput = new QLineEdit(settingsWindow);
+        memoryLimitInput->setPlaceholderText("Введите ваш запрос для работы графика");
+
+        QPushButton *applyButton = new QPushButton("Применить", settingsWindow);
+
+        inputLayout->addWidget(memoryLimitInput);
+        inputLayout->addWidget(applyButton);
+        mainLayout->addLayout(inputLayout);
+
+        connect(applyButton, &QPushButton::clicked, this, [=]() {
+            QString inputText = memoryLimitInput->text();
+            if (connection) {
+                QString query = inputText;
+
+                try {
+                    std::visit([&](auto&& graph) {
+                        if (!graph->applyChangesFromChoosing(query)) {
+                            QMessageBox::critical(settingsWindow,
+                                                "Ошибка",
+                                                "Не правильный формат запроса");
+                        } else {
+                            QMessageBox::information(settingsWindow,
+                                               "Успех",
+                                               "Успешно изменено");
+                        }
+                        }, graphVariant);
+
+                } catch  (const std::exception& e){
+                    QMessageBox::critical(settingsWindow,
+                                        "Ошибка",
+                                        "Не правильный формат запроса", e.what());
+                }
+            }
+        });
+        settingsWindow->setAttribute(Qt::WA_DeleteOnClose);
+        settingsWindow->show();
+    });
+
+
     if (!std::holds_alternative<StackGraphBackend*>(graphVariant)) {
         auto* colorButton = new QPushButton("Цвет линии");
         settingsLayout->addWidget(colorButton);
@@ -97,21 +141,19 @@ void GraphChoosing::createDiagram(QString type) {
     }
     settingsLayout->addStretch();
     mainLayout->addWidget(settingsGroupBox);
+    settingsLayout->addWidget(sqlButton);
     ui->chartsLayout->insertWidget(ui->chartsLayout->count() - 1, chartGroupBox);
 
-
-    /*
-
-    connect(gridCheckBox, &QCheckBox::stateChanged, [graph](int state) {
-        graph->SetGridVisible(state == Qt::Checked);
-    });
-
-    connect(typeComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-            [this, graph](int index) {
-                // Здесь логика изменения типа графика
-                // Вам нужно реализовать этот метод в RoundGraphBackend
-                graph->ChangeChartType(index);
-            }); */
+    if (!std::holds_alternative<RoundGraphBackend*>(graphVariant)) {
+        std::visit([&](auto&& graph) {
+            auto* gridCheckBox = new QCheckBox("Показать сетку");
+            gridCheckBox->setChecked(true);
+            settingsLayout->addWidget(gridCheckBox);
+            connect(gridCheckBox, &QCheckBox::stateChanged, [graph](int state) {
+                graph->setGrid(state == Qt::Checked);
+            });
+        }, graphVariant);
+    }
 }
 
 void GraphChoosing::Repaint() {

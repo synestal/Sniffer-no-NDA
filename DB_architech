@@ -1,0 +1,48 @@
+workspace {
+  model {
+    user = person "User"
+    packetSystem = softwareSystem "Packet Capture System" {
+      duckdb = container "DuckDB" "Embedded analytical database" "SQL" {
+        
+        general = component "General Fields" "ts, caplen, len, packet_type"
+        ethernet = component "Ethernet Fields" "eth_src_mac, eth_dst_mac, eth_type"
+        ipv4 = component "IPv4 Fields" "ipv4_* fields"
+        ipv6 = component "IPv6 Fields" "ipv6_* fields"
+        tcp = component "TCP Fields" "tcp_* fields"
+        udp = component "UDP Fields" "udp_* fields"
+        icmp = component "ICMP Fields" "icmp_* fields"
+        arp = component "ARP Fields" "arp_* fields"
+        payload = component "Payload" "data"
+        
+        user -> general "Reads/Writes packet meta"
+        user -> ethernet "Reads/Writes Ethernet"
+        user -> ipv4 "Reads/Writes IPv4"
+        user -> ipv6 "Reads/Writes IPv6"
+        user -> tcp "Reads/Writes TCP"
+        user -> udp "Reads/Writes UDP"
+        user -> icmp "Reads/Writes ICMP"
+        user -> arp "Reads/Writes ARP"
+        user -> payload "Reads/Writes Payload"
+      }
+    }
+  }
+  
+  views {
+    systemContext packetSystem {
+      include *
+      autolayout lr
+    }
+    
+    container packetSystem {
+      include *
+      autolayout lr
+    }
+    
+    component duckdb {
+      include *
+      autolayout lr
+    }
+    
+    theme default
+  }
+}

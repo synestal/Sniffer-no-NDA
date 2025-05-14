@@ -70,6 +70,14 @@ void BarGraph::ConstructGraph() {
     chartView->setDragMode(QGraphicsView::ScrollHandDrag);
 }
 
+
+void BarGraph::setGrid(bool state) {
+    if (axisX && axisY) {
+        axisX->setGridLineVisible(state);
+        axisY->setGridLineVisible(state);
+    }
+}
+
 // BarGraphBackend
 
 BarGraphBackend::BarGraphBackend(QWidget *parent)
@@ -118,6 +126,27 @@ void BarGraphBackend::Repaint() {
     graph->setMaxObjects(maxSize, maxValue, prevMaxSize);
     graph->Repaint();
     prevMaxSize = maxSize;
+}
+bool BarGraphBackend::applyChangesFromChoosing(QString query) {
+    try {
+        auto result = connection->Query(query.toUtf8().constData());
+        if (!result || result->HasError()) {
+            qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
+            return false;
+        }
+        if (result->RowCount() == 0) return false;
+        int count = result->GetValue(2, 0).GetValue<int64_t>();
+        QString label = QString("%1 - %2")
+                            .arg(result->GetValue(0, 0).GetValue<int64_t>())
+                            .arg(result->GetValue(1, 0).GetValue<int64_t>());
+        qDebug() << count << label;
+        queryRaw = query;
+        queryIsChanged = true;
+        return true;
+    } catch (const std::exception& e) {
+        qDebug() << e.what();
+        return false;
+    }
 }
 
 std::vector<std::pair<QString, int>> BarGraphBackend::SearchByParams(int start, int stop, int offset) {
@@ -185,4 +214,7 @@ void BarGraphBackend::setLen(int start, int stop, int _offset) {
     lenStop = stop;
     offset = _offset;
 
+}
+void BarGraphBackend::setGrid(bool state) {
+    graph->setGrid(state);
 }

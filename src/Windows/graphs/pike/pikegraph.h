@@ -40,6 +40,13 @@ public:
         GraphData = dta;
     }
 
+    void setGrid(bool state) {
+        if (axisX && axisY) {
+            axisX->setGridLineVisible(state);
+            axisY->setGridLineVisible(state);
+        }
+    }
+
 public slots:
     void Repaint() {
         axisX->setRange(0, maxSize);
@@ -122,6 +129,9 @@ public:
     int offset = 1000;
 
     void setLen(int start, int stop, int offset) {};
+    void setGrid(bool state);
+    QString queryRaw = "SELECT COUNT(*) FROM packets WHERE (packet_type = '%1');";
+    bool applyChangesFromChoosing(QString);
 
 public slots:
     void Repaint();
@@ -131,6 +141,7 @@ public slots:
     }
 private:
     void ConstructGraph();
+    bool queryIsChanged = false;
 
     std::vector<std::pair<QString, int>> SearchByParams(int, int, int, int);
 

@@ -48,33 +48,9 @@ PikesGraphBackend::~PikesGraphBackend() {
 
     void PikesGraphBackend::ConstructGraph() {
         layout = new QVBoxLayout;
-        QPushButton* button1 = new QPushButton(this);
-        button1->setText("Почасовая");
-        QPushButton* button2 = new QPushButton(this);
-        button2->setText("Поминутная");
-        QPushButton* button3 = new QPushButton(this);
-        button3->setText("Посекундная");
-        QPushButton* button4 = new QPushButton(this);
-        button4->setText("Почасовая - live");
-        QPushButton* button5 = new QPushButton(this);
-        button5->setText("Поминутная - live");
-        QPushButton* button6 = new QPushButton(this);
-        button6->setText("Посекундная - live");
-        connect(button1, &QPushButton::clicked, this, [this](){setGraphMode(1);});
-        connect(button2, &QPushButton::clicked, this, [this](){setGraphMode(2);});
-        connect(button3, &QPushButton::clicked, this, [this](){setGraphMode(3);});
-        connect(button4, &QPushButton::clicked, this, [this](){setGraphMode(4);});
-        connect(button5, &QPushButton::clicked, this, [this](){setGraphMode(5);});
-        connect(button6, &QPushButton::clicked, this, [this](){setGraphMode(6);});
         setGraphMode(3);
         graph = new PikesGraph();
         layout->addWidget(graph->GetChart());
-        layout->addWidget(button1);
-        layout->addWidget(button2);
-        layout->addWidget(button3);
-        layout->addWidget(button4);
-        layout->addWidget(button5);
-        layout->addWidget(button6);
     }
 
 
@@ -103,6 +79,25 @@ PikesGraphBackend::~PikesGraphBackend() {
             break;
         }
     }
+    bool PikesGraphBackend::applyChangesFromChoosing(QString query) {
+        try {
+            auto result = connection->Query(query.toUtf8().constData());
+            if (!result || result->HasError()) {
+                qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
+                return false;
+            }
+            if (result->RowCount() == 0) return false;
+            QString str = QDateTime::fromSecsSinceEpoch(result->GetValue(0, 0).GetValue<int64_t>()).toString("yyyy:MM:dd:hh:mm:ss");
+            int cnt = result->GetValue<int8_t>(1, 0);
+            qDebug() << str << cnt;
+            queryRaw = query;
+            queryIsChanged = true;
+            return true;
+        } catch (const std::exception& e) {
+            qDebug() << e.what();
+            return false;
+        }
+    }
 
     std::vector<std::pair<QString, int>> PikesGraphBackend::SearchByParams(int delitel, int offset, int start, int stop) {
         if (!connection) {
@@ -118,7 +113,14 @@ PikesGraphBackend::~PikesGraphBackend() {
             oss << "SELECT ts AS unix_time, COUNT(*) AS count FROM packets "
                 << "WHERE ts >= " << start << " AND ts < " << stop
                 << " GROUP BY unix_time ORDER BY unix_time;";
-            std::string query = oss.str();
+
+
+            std::string query = "";
+            if (!queryIsChanged) {
+                query = oss.str();
+            } else {
+                query = queryRaw.QString::toStdString();
+            }
 
             auto result = connection->Query(query);
             if (!result || result->HasError()) {
@@ -145,6 +147,10 @@ PikesGraphBackend::~PikesGraphBackend() {
             qDebug() << "DuckDB error: " << e.what();
             return std::vector<std::pair<QString, int>>{};
         }
+    }
+
+    void PikesGraphBackend::setGrid(bool state) {
+        graph->setGrid(state);
     }
 
 

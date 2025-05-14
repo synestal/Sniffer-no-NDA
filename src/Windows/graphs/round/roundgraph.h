@@ -23,6 +23,7 @@ public:
     RoundGraph(std::unordered_map<QString, int>& obj, QWidget *parent = nullptr);
     QChartView* GetChart();
     void Repaint();
+    void setGrid(bool state) {};
 
 private:
     void ConstructGraph();
@@ -56,6 +57,9 @@ public:
     int offset = 1000;
 
     void setLen(int start, int stop, int offset) {};
+    void setGrid(bool state) {};
+    QString queryRaw = "SELECT COUNT(*) FROM packets WHERE (packet_type = '%1');";
+    bool applyChangesFromChoosing(QString);
 public slots:
     void setColor(QColor color) {
         if (graph) graph->setColor(color);
@@ -63,6 +67,7 @@ public slots:
 
 private:
     void ConstructGraph();
+    bool queryIsChanged = false;
 
     QVBoxLayout* layout = nullptr;
     RoundGraph* graph = nullptr;

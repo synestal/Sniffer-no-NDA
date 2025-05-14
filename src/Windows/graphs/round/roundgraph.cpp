@@ -56,8 +56,6 @@ void RoundGraph::Repaint() {
 QChartView* RoundGraph::GetChart() {
     return chartView;
 }
-
-
 /*
  * CLASS RoundGraphBackend
  */
@@ -76,6 +74,24 @@ void RoundGraphBackend::ConstructGraph() {
     graph = new RoundGraph(*ObjectsCount, this);
     layout->addWidget(graph->GetChart());
     Repaint();
+}
+bool RoundGraphBackend::applyChangesFromChoosing(QString query) {
+    try {
+        auto result = connection->Query(query.toUtf8().constData());
+        if (!result || result->HasError()) {
+            qDebug() << "DuckDB query error:" << (result ? QString::fromStdString(result->GetError()) : "No result");
+            return false;
+        }
+        if (result->RowCount() == 0) return false;
+        int ans = result->GetValue<int64_t>(0, 0);
+        qDebug() << ans;
+        queryRaw = query;
+        queryIsChanged = true;
+        return true;
+    } catch (const std::exception& e) {
+        qDebug() << e.what();
+        return false;
+    }
 }
 
 void RoundGraphBackend::Repaint() {
@@ -100,7 +116,12 @@ int RoundGraphBackend::SearchByParams(int start, int howMany, const QString toFi
     }
 
     try {
-        QString query = QString("SELECT COUNT(*) FROM packets WHERE (packet_type = '%1');").arg(toFind);
+        QString query = "";
+        if (!queryIsChanged) {
+            query = QString(queryRaw).arg(toFind);
+        } else {
+            query = queryRaw;
+        }
         auto result = connection->Query(query.toUtf8().constData());
 
         if (!result || result->HasError()) {
