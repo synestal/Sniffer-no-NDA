@@ -27,11 +27,10 @@ workspace {
                 storageSlotHandler = component "Обработчик слотов хранения" "Принимает сигналы Qt и вызывает соответствующие операции хранения" "C++/Qt"
             }
 
-            analyticsModule = container "Ядро системы аналитики" "Обрабатывает и анализирует собранные данные" "C++/Python" {
-                trafficAnalyzer = component "Анализатор трафика" "Выполняет глубокий анализ сетевого трафика и выявляет паттерны" "C++/Python"
+            analyticsModule = container "Ядро системы аналитики" "Обрабатывает и анализирует собранные данные" "C++" {
                 statisticsEngine = component "Движок статистики" "Собирает статистику по различным параметрам трафика" "C++"
-                reportGenerator = component "Генератор отчетов" "Создает отчеты на основе проанализированных данных" "C++/Python"
-                visualizationCore = component "Ядро визуализации" "Подготавливает данные для визуализации в графиках и диаграммах" "C++/Python"
+                settingsGenerator = component "Генератор настроек" "Применяет настройки пользователя" "C++/Qt"
+                visualizationCore = component "Ядро визуализации" "Подготавливает данные для визуализации в графиках и диаграммах" "C++/Qt"
                 analyticsController = component "Контроллер аналитики" "Координирует процессы анализа и объединяет результаты" "C++"
                 analyticsSignalEmitter = component "Эмиттер сигналов аналитики" "Генерирует Qt сигналы с результатами анализа" "C++/Qt"
                 analyticsSlotHandler = component "Обработчик слотов аналитики" "Принимает сигналы от GUI и других компонентов" "C++/Qt"
@@ -49,10 +48,9 @@ workspace {
             }
 
             utilityModule = container "Служебные модули" "Обеспечивают вспомогательную функциональность" "C++" {
-                logger = component "Система логирования" "Записывает события и ошибки в журнал" "C++"
+                logger = component "Система логирования" "Записывает события и ошибки в журнал" "C++/Qt"
                 configManager = component "Менеджер конфигурации" "Управляет настройками приложения" "C++"
                 performanceMonitor = component "Монитор производительности" "Отслеживает производительность системы" "C++"
-                updater = component "Система обновлений" "Обеспечивает обновление программного обеспечения" "C++"
                 errorHandler = component "Обработчик ошибок" "Обрабатывает и логирует исключения и ошибки" "C++"
             }
 
@@ -66,9 +64,6 @@ workspace {
             // Интегрированная DuckDB в основной системе (важное изменение - перемещено внутрь системы)
             duckDBContainer = container "DuckDB" "Колоночная аналитическая БД для хранения и обработки данных пакетов" "DuckDB" {
                 packetTable = component "Таблица packets" "Основная таблица с данными пакетов" "DuckDB"
-                metadataTable = component "Таблица metadata" "Метаданные о сессиях захвата" "DuckDB"
-                sessionTable = component "Таблица sessions" "Информация о сетевых сессиях" "DuckDB"
-                statTable = component "Таблица statistics" "Агрегированная статистика" "DuckDB"
             }
         }
 
@@ -102,18 +97,13 @@ workspace {
         queryBuilder -> duckDBManager "Формирует запросы для"
         duckDBManager -> dataCache "Кэширует результаты запросов в"
         duckDBManager -> packetTable "Записывает и читает данные из"
-        duckDBManager -> metadataTable "Записывает и читает данные из"
-        duckDBManager -> sessionTable "Записывает и читает данные из"
-        duckDBManager -> statTable "Записывает и читает данные из"
 
         // Связи между компонентами аналитики
         analyticsSlotHandler -> signalSlotConnector "Регистрирует слоты в"
         analyticsSlotHandler -> analyticsController "Вызывает методы при получении сигналов"
-        analyticsController -> trafficAnalyzer "Координирует работу"
         analyticsController -> statisticsEngine "Координирует работу"
-        analyticsController -> reportGenerator "Координирует работу"
+        analyticsController -> settingsGenerator "Координирует работу"
         analyticsController -> visualizationCore "Координирует работу"
-        trafficAnalyzer -> queryBuilder "Запрашивает данные через"
         statisticsEngine -> queryBuilder "Запрашивает данные через"
         analyticsController -> analyticsSignalEmitter "Передает результаты анализа в"
         analyticsSignalEmitter -> signalSlotConnector "Эмитирует сигналы analysisResult() в"

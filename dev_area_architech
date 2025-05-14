@@ -1,0 +1,88 @@
+workspace {
+
+    model {
+        developer = person "Разработчик" {
+            description "Разрабатывает и отлаживает систему"
+        }
+
+        system = softwareSystem "Система захвата и анализа IP-пакетов" {
+            description "Qt-приложение для перехвата, хранения и анализа IP-трафика"
+
+            qtApp = container "Qt/C++ Приложение" {
+                description "Основное десктоп-приложение, разрабатываемое пользователем"
+                technology "C++, Qt"
+            }
+
+            github = container "GitHub" {
+                description "Хранилище исходного кода и CI/CD (GitHub Actions)"
+                technology "Git"
+            }
+
+            qtCreator = container "QtCreator" {
+                description "Основная IDE, используемая разработчиком"
+                technology "IDE"
+            }
+
+            qmake = container "qmake" {
+                description "Система сборки проекта"
+                technology "qmake"
+            }
+
+            duckdb = container "DuckDB" {
+                description "Встраиваемая аналитическая СУБД"
+                technology "C++ library"
+                tags "External"
+            }
+
+            pcap = container "libpcap/WinPcap" {
+                description "Библиотека для захвата сетевых пакетов"
+                technology "C/C++ library"
+                tags "External"
+            }
+
+            developer -> qtCreator "Разрабатывает с помощью"
+            qtCreator -> github "Push/Pull исходного кода"
+            qtCreator -> qmake "Собирает проект через"
+            qtApp -> duckdb "Встраивает и использует"
+            qtApp -> pcap "Использует для захвата пакетов"
+            qtApp -> github "Хранится в"
+        }
+    }
+
+views {
+        systemContext system {
+            include *
+            autolayout lr
+            title "Контекст среды разработки"
+        }
+
+        container system {
+            include *
+            autolayout lr
+            title "Контейнеры среды разработки"
+        }
+
+        styles {
+            element "External" {
+                background #808080
+                color #ffffff
+            }
+            
+            element "Software System" {
+                background #1168bd
+                color #ffffff
+            }
+            
+            element "Person" {
+                shape person
+                background #08427b
+                color #ffffff
+            }
+            
+            element "Container" {
+                background #438dd5
+                color #ffffff
+            }
+        }
+    }
+}
